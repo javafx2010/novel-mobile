@@ -64,6 +64,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                         storageMode = settings.storageMode,
                         customTreeUri = settings.customTreeUri,
                         storagePath = path,
+                        showSentence = settings.showSentence,
                     )
                 }
             }
@@ -405,8 +406,12 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         VoicePrepCenter.onSettingsChanged()
     }
 
-    // ---- Reader theme ----
+    /** 播放页是否展示当前朗读句（纯展示开关，不影响配音）。 */
+    fun setShowSentence(show: Boolean) {
+        AppSettings.setShowSentence(show)
+    }
 
+    // ---- Reader theme ----
     fun setReaderTheme(theme: ReaderTheme) {
         readerPrefs.edit().putString(KEY_READER_THEME, theme.name).apply()
         _state.update { it.copy(readerTheme = theme) }

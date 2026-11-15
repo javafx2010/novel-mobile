@@ -38,6 +38,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.wildenglish.app.audiobook.ReaderTheme
@@ -239,6 +240,7 @@ fun WaterWipeSentence(
     textAlign: TextAlign,
     lineHeight: TextUnit,
     modifier: Modifier = Modifier,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     var outgoing by remember { mutableStateOf(text) }
     var incoming by remember { mutableStateOf(text) }
@@ -283,6 +285,8 @@ fun WaterWipeSentence(
                 fontWeight = fontWeight,
                 textAlign = textAlign,
                 lineHeight = lineHeight,
+                maxLines = maxLines,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 16.dp)
@@ -297,6 +301,8 @@ fun WaterWipeSentence(
             fontWeight = fontWeight,
             textAlign = textAlign,
             lineHeight = lineHeight,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp, vertical = 16.dp)

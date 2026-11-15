@@ -26,6 +26,8 @@ data class AppSettingsState(
     val storageMode: VoiceStorageMode = VoiceStorageMode.AUTO,
     /** SAF tree uri of the folder picked for [VoiceStorageMode.CUSTOM]. */
     val customTreeUri: String? = null,
+    /** 播放页是否展示「当前朗读句」卡片。 */
+    val showSentence: Boolean = true,
 )
 
 /**
@@ -40,6 +42,7 @@ object AppSettings {
     private const val KEY_VOICE = "voice"
     private const val KEY_STORAGE_MODE = "storage_mode"
     private const val KEY_TREE_URI = "storage_tree_uri"
+    private const val KEY_SHOW_SENTENCE = "show_sentence"
 
     private var prefs: SharedPreferences? = null
 
@@ -55,6 +58,7 @@ object AppSettings {
                 VoiceStorageMode.valueOf(p.getString(KEY_STORAGE_MODE, null).orEmpty())
             }.getOrDefault(VoiceStorageMode.AUTO),
             customTreeUri = p.getString(KEY_TREE_URI, null),
+            showSentence = p.getBoolean(KEY_SHOW_SENTENCE, true),
         )
     }
 
@@ -78,5 +82,12 @@ object AppSettings {
         _state.value = _state.value.copy(customTreeUri = uri)
         prefs?.edit()?.putString(KEY_TREE_URI, uri)?.apply()
         VoiceStorage.invalidate()
+    }
+
+    /** 是否在播放页展示当前朗读句（关闭后播放页只保留封面与控件）。 */
+    fun setShowSentence(show: Boolean) {
+        if (show == _state.value.showSentence) return
+        _state.value = _state.value.copy(showSentence = show)
+        prefs?.edit()?.putBoolean(KEY_SHOW_SENTENCE, show)?.apply()
     }
 }

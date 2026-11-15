@@ -24,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -146,6 +147,39 @@ fun SettingsScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                         )
                         Text("  选择自定义目录", fontSize = 14.sp)
                     }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider(Modifier.padding(horizontal = 20.dp))
+                SectionTitle(
+                    title = "播放页",
+                    hint = "控制播放页（有声书界面）显示的内容。",
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { vm.setShowSentence(!state.showSentence) }
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "显示当前朗读句",
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Text(
+                            "关闭后播放页只保留封面、进度和播放控件",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = state.showSentence,
+                        onCheckedChange = { vm.setShowSentence(it) },
+                    )
                 }
             }
         }

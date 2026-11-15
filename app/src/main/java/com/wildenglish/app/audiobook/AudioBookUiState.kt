@@ -62,6 +62,8 @@ data class AudioBookUiState(
     val customTreeUri: String? = null,
     /** 当前实际写入配音文件的目录，展示在设置页。 */
     val storagePath: String = "",
+    /** 播放页是否展示「当前朗读句」。 */
+    val showSentence: Boolean = true,
 ) {
     val currentBook: Audiobook? get() = books.firstOrNull { it.id == currentBookId }
     val currentChapter: Chapter? get() = currentBook?.chapters?.getOrNull(chapterIndex)

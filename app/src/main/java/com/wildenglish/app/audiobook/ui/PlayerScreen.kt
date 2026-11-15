@@ -14,13 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
@@ -192,26 +191,21 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             )
             Spacer(Modifier.height(12.dp))
 
-            // 当前句：占满剩余高度，句子太长只在卡片内部滚动，页面不会溢出。
-            GlassPanel(
-                shape = GlassBarShape,
-                dark = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                elevation = 10.dp,
-            ) {
-                Box(
+            // 当前句：只显示两行，高度固定，不再占满整页（可在设置里关闭展示）。
+            if (state.showSentence) {
+                GlassPanel(
+                    shape = GlassBarShape,
+                    dark = true,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 18.dp, vertical = 14.dp),
-                    contentAlignment = Alignment.Center,
+                        .fillMaxWidth()
+                        .heightIn(min = 88.dp, max = 132.dp),
+                    elevation = 10.dp,
                 ) {
-                    if (!currentSentence.isNullOrBlank()) {
-                        Column(
-                            modifier = Modifier.verticalScroll(rememberScrollState()),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (!currentSentence.isNullOrBlank()) {
                             WaterWipeSentence(
                                 text = currentSentence,
                                 index = state.currentSentenceIndex,
@@ -222,22 +216,24 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                                 fontWeight = FontWeight.Medium,
                                 textAlign = TextAlign.Center,
                                 lineHeight = 26.sp,
+                                maxLines = 2,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(GlassBarShape),
                             )
+                        } else {
+                            Text(
+                                "准备中…",
+                                fontSize = 15.sp,
+                                color = Color.White.copy(alpha = 0.6f),
+                            )
                         }
-                    } else {
-                        Text(
-                            "准备中…",
-                            fontSize = 15.sp,
-                            color = Color.White.copy(alpha = 0.6f),
-                        )
                     }
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            // 把进度条与播放控件推到页面底部。
+            Spacer(Modifier.weight(1f))
             Slider(
                 value = sliderValue,
                 onValueChange = {
