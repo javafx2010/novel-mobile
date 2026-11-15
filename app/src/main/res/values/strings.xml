@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">听书</string>
+    <string name="voice_channel_name">后台配音</string>
+    <string name="voice_channel_desc">常驻后台自动为图书生成离线配音</string>
+    <string name="voice_notif_title">听书 · 后台配音</string>
+    <string name="voice_notif_idle">配音服务运行中 · 点击返回应用</string>
+    <string name="voice_notif_stop">停止</string>
+</resources>

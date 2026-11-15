@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+*.gradle.kts.lock
+
+# Kotlin
+.kotlin/
+
+# Android / IDE
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Misc
+.DS_Store
+*.log
+SENTINEL.txt
+out/

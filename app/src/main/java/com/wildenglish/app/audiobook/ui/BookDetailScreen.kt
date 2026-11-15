@@ -1,0 +1,303 @@
+package com.wildenglish.app.audiobook.ui
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.wildenglish.app.audiobook.AudioBookUiState
+import com.wildenglish.app.audiobook.AudioBookViewModel
+import com.wildenglish.app.audiobook.data.Chapter
+import com.wildenglish.app.ui.theme.GlassCardShape
+import com.wildenglish.app.ui.theme.GlassIconButton
+import com.wildenglish.app.ui.theme.GlassPrimaryButton
+import com.wildenglish.app.ui.theme.glass
+
+@Composable
+fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
+    val book = state.currentBook
+    if (book == null) {
+        CenteredMessage(
+            title = "没有选择书籍",
+            hint = "请返回书架重新选择。",
+            actionLabel = "返回书架",
+            onAction = vm::goBack,
+        )
+        return
+    }
+
+    var showDelete by remember { mutableStateOf(false) }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val dark = isSystemInDarkTheme()
+            GlassIconButton(onClick = vm::goBack, dark = dark) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "返回",
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            GlassIconButton(onClick = { showDelete = true }, dark = dark) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "删除本书",
+                )
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(bottom = 28.dp),
+        ) {
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    BookCover(
+                        coverFile = book.coverFile,
+                        title = book.title,
+                        modifier = Modifier
+                            .width(150.dp)
+                            .aspectRatio(0.7f),
+                    )
+                    Spacer(Modifier.height(22.dp))
+                    Text(
+                        book.title,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    val meta = listOfNotNull(book.author, book.narrator?.let { "演播 $it" })
+                        .joinToString(" · ")
+                        .ifBlank { "${book.chapterCount} 章" }
+                    Text(
+                        meta,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            item {
+                Column(Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 20.dp)) {
+                    GlassPrimaryButton(
+                        label = "开始朗读",
+                        onClick = { vm.playSaved() },
+                        modifier = Modifier.fillMaxWidth(),
+                        leading = {
+                            Icon(
+                                Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.width(20.dp)
+                            )
+                        },
+                    )
+
+                    val prep = state.voicePrep[book.id]
+                    val offlineReady = book.id in state.readyVoiceBookIds
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        when {
+                            prep != null && prep.total > 0 ->
+                                "正在预生成离线配音 ${prep.done}/${prep.total}，完成后朗读无需联网且更流畅"
+
+                            prep != null -> "正在准备离线配音…"
+                            offlineReady -> "离线配音已就绪，朗读无需联网"
+                            else -> "尚未生成离线配音，朗读时将在线合成"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (prep != null && prep.total > 0) {
+                        Spacer(Modifier.height(6.dp))
+                        LinearProgressIndicator(
+                            progress = { prep.done.toFloat() / prep.total.toFloat() },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else if (prep == null) {
+                        Spacer(Modifier.height(6.dp))
+                        FilledTonalButton(
+                            onClick = { vm.prepareVoice(book.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(if (offlineReady) "重新生成离线配音" else "预生成离线配音")
+                        }
+                    }
+                }
+            }
+
+            book.description?.takeIf { it.isNotBlank() }?.let { description ->
+                item {
+                    Text(
+                        description,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            item { SectionHeader("目录") }
+            item {
+                GroupedCard {
+                    book.chapters.forEachIndexed { index, chapter ->
+                        ChapterRow(
+                            chapter = chapter,
+                            isCurrent = index == state.chapterIndex,
+                            onClick = { vm.playChapter(book, index) },
+                            onOpenText = { vm.openDocument(book, index) },
+                        )
+                        if (index < book.chapters.lastIndex) RowDivider(52.dp)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDelete) {
+        AlertDialog(
+            onDismissRequest = { showDelete = false },
+            title = { Text("删除《${book.title}》？") },
+            text = { Text("将从本地移除该有声书及其封面与文稿。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDelete = false
+                    vm.deleteBook(book.id)
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDelete = false }) { Text("取消") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+}
+
+@Composable
+private fun GroupedCard(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .glass(shape = GlassCardShape, dark = isSystemInDarkTheme()),
+        content = content,
+    )
+}
+
+@Composable
+private fun RowDivider(startInset: Dp) {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = startInset),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
+}
+
+@Composable
+private fun ChapterRow(
+    chapter: Chapter,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+    onOpenText: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "${chapter.index + 1}",
+            modifier = Modifier.width(30.dp),
+            fontSize = 15.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                chapter.title,
+                fontSize = 16.sp,
+                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "文稿朗读",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (chapter.textFile != null || chapter.cuesFile != null) {
+            TextButton(onClick = onOpenText) { Text("文稿") }
+        }
+    }
+}
