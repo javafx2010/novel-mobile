@@ -3,9 +3,6 @@
 package com.wildenglish.app.audiobook.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,14 +11,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,21 +97,18 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
     }
 
     val cover = rememberCover(book.coverFile)
-    val coverScale = remember { Animatable(0.88f) }
-    LaunchedEffect(Unit) {
-        coverScale.animateTo(
-            targetValue = 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
-        )
-    }
+    val currentSentence = state.sentences.getOrNull(state.currentSentenceIndex)
+    val waterTint by animateColorAsState(
+        targetValue = state.readerTheme.flowTint(onDark = true),
+        animationSpec = tween(420),
+        label = "playerWaterTint",
+    )
 
     Box(Modifier
         .fillMaxSize()
         .background(Brush.verticalGradient(listOf(Color(0xFF1A2230), Color.Black)))
     ) {
+        // 封面即背景：整屏铺满 + 压暗渐变，保证上面的文字和控件可读。
         if (cover != null) {
             Image(
                 bitmap = cover,
@@ -124,26 +116,30 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { scaleX = 1.18f; scaleY = 1.18f }
-                    .liquidBlur(48.dp),
+                    .graphicsLayer { scaleX = 1.06f; scaleY = 1.06f }
+                    .liquidBlur(16.dp),
             )
             Box(
                 Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Black.copy(alpha = 0.20f), Color.Black.copy(alpha = 0.62f))
+                            listOf(
+                                Color.Black.copy(alpha = 0.34f),
+                                Color.Black.copy(alpha = 0.52f),
+                                Color.Black.copy(alpha = 0.86f),
+                            )
                         )
                     )
             )
         }
 
+        // 整页固定占满一屏：不滚动、不溢出，仅“当前句”卡片内部可滚动。
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 28.dp, vertical = 8.dp),
+                .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             GlassPanel(
@@ -172,78 +168,76 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
-            BookCover(
-                coverFile = book.coverFile,
-                title = book.title,
-                modifier = Modifier
-                    .width(240.dp)
-                    .aspectRatio(0.72f)
-                    .graphicsLayer {
-                        scaleX = coverScale.value
-                        scaleY = coverScale.value
-                    },
-            )
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(14.dp))
             Text(
                 book.title,
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
-                fontSize = 24.sp,
+                fontSize = 22.sp,
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 chapter.title,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(Modifier.height(12.dp))
 
-            val currentSentence = state.sentences.getOrNull(state.currentSentenceIndex)
-            val waterTint by animateColorAsState(
-                targetValue = state.readerTheme.flowTint(onDark = true),
-                animationSpec = tween(420),
-                label = "playerWaterTint",
-            )
-            if (!currentSentence.isNullOrBlank()) {
-                Spacer(Modifier.height(18.dp))
-                GlassPanel(
-                    shape = GlassBarShape,
-                    dark = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = 10.dp,
+            // 当前句：占满剩余高度，句子太长只在卡片内部滚动，页面不会溢出。
+            GlassPanel(
+                shape = GlassBarShape,
+                dark = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                elevation = 10.dp,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        WaterWipeSentence(
-                            text = currentSentence,
-                            index = state.currentSentenceIndex,
-                            tint = waterTint,
-                            color = Color.White,
-                            fontFamily = FontFamily.Serif,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 26.sp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(GlassBarShape),
+                    if (!currentSentence.isNullOrBlank()) {
+                        Column(
+                            modifier = Modifier.verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            WaterWipeSentence(
+                                text = currentSentence,
+                                index = state.currentSentenceIndex,
+                                tint = waterTint,
+                                color = Color.White,
+                                fontFamily = FontFamily.Serif,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 26.sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(GlassBarShape),
+                            )
+                        }
+                    } else {
+                        Text(
+                            "准备中…",
+                            fontSize = 15.sp,
+                            color = Color.White.copy(alpha = 0.6f),
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
             Slider(
                 value = sliderValue,
                 onValueChange = {
@@ -359,7 +353,7 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 GlassTextButton(
                     label = "语速 ${state.speed}×",
@@ -377,7 +371,7 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 )
                 GlassTextButton(label = "文稿", onClick = vm::showDocument, dark = true)
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
         }
     }
 
