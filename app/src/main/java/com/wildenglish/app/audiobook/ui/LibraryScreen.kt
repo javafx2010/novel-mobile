@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
-import com.wildenglish.app.audiobook.VoicePrepProgress
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.ui.theme.GlassIconButton
 import com.wildenglish.app.ui.theme.GlassPrimaryButton
@@ -137,8 +136,6 @@ fun LibraryScreen(
                     BookTile(
                         book = book,
                         index = index,
-                        prep = state.voicePrep[book.id],
-                        offlineReady = book.id in state.readyVoiceBookIds,
                         onClick = { vm.openBook(book.id) },
                     )
                 }
@@ -188,8 +185,6 @@ private fun EmptyLibrary(error: String?, onImport: () -> Unit) {
 private fun BookTile(
     book: Audiobook,
     index: Int,
-    prep: VoicePrepProgress?,
-    offlineReady: Boolean,
     onClick: () -> Unit,
 ) {
     val alpha = remember(book.id) { Animatable(0f) }
@@ -231,20 +226,5 @@ private fun BookTile(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        val status = when {
-            prep != null && prep.total > 0 -> "配音中 ${prep.done}/${prep.total}"
-            prep != null -> "准备配音…"
-            offlineReady -> "已本地配音"
-            else -> null
-        }
-        if (status != null) {
-            Text(
-                status,
-                fontSize = 11.sp,
-                color = if (offlineReady && prep == null) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-        }
     }
 }
