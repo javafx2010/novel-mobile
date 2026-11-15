@@ -27,20 +27,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,72 +46,15 @@ import androidx.compose.ui.unit.sp
 import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
 import com.wildenglish.app.audiobook.data.MarketItem
-import com.wildenglish.app.audiobook.data.ServerConfig
 import com.wildenglish.app.ui.theme.GlassIconButton
 import java.util.Locale
 
 /**
  * 图书市场：浏览服务器上可下载的书，点封面把 EPUB 下载到本地并加入书架。
- * 没有购买/付费，下载后直接走本地导入流程。右上角齿轮可修改后台服务器地址。
+ * 没有购买/付费，下载后直接走本地导入流程。后台地址写死在 [MarketApi] 中，不可配置。
  */
 @Composable
 fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
-    var showSettings by remember { mutableStateOf(false) }
-    var addressInput by remember { mutableStateOf("") }
-    var addressInvalid by remember { mutableStateOf(false) }
-
-    if (showSettings) {
-        AlertDialog(
-            onDismissRequest = { showSettings = false },
-            title = { Text("服务器地址") },
-            text = {
-                Column {
-                    Text(
-                        "图书市场从该后台读取书目并下载 EPUB。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = addressInput,
-                        onValueChange = {
-                            addressInput = it
-                            addressInvalid = false
-                        },
-                        label = { Text("例如 43.173.26.117:8080") },
-                        supportingText = {
-                            Text(
-                                if (addressInvalid) "地址不合法，请输入 http(s) 主机地址"
-                                else "当前：${state.serverAddress}",
-                                color = if (addressInvalid) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        isError = addressInvalid,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    TextButton(onClick = {
-                        addressInput = ServerConfig.DEFAULT_BASE_URL
-                        addressInvalid = false
-                    }) { Text("恢复默认") }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (vm.setServerAddress(addressInput)) {
-                        showSettings = false
-                    } else {
-                        addressInvalid = true
-                    }
-                }) { Text("保存") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSettings = false }) { Text("取消") }
-            },
-        )
-    }
-
     Column(
         Modifier
             .fillMaxSize()
@@ -160,17 +95,6 @@ fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            GlassIconButton(onClick = {
-                addressInput = state.serverAddress
-                addressInvalid = false
-                showSettings = true
-            }, dark = dark) {
-                Icon(
-                    imageVector = Icons.Filled.Settings,
-                    contentDescription = "服务器设置",
-                )
-            }
-            androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
             GlassIconButton(onClick = vm::refreshMarket, dark = dark) {
                 Icon(
                     imageVector = Icons.Filled.Refresh,
@@ -228,7 +152,7 @@ fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                     } else {
                         CenteredMessage(
                             title = "市场暂无图书",
-                            hint = "服务器上还没有可下载的图书。若一直加载不到，点右上角齿轮确认服务器地址。",
+                            hint = "服务器上还没有可下载的图书，稍后再试或点刷新。",
                             actionLabel = "刷新",
                             onAction = vm::refreshMarket,
                         )

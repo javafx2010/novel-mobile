@@ -50,8 +50,6 @@ data class AudioBookUiState(
     val marketTotalElements: Long = 0,
     /** Market book id whose EPUB is being downloaded right now. */
     val downloadingMarketId: Long? = null,
-    /** Backend address used by the market; editable in the market settings dialog. */
-    val serverAddress: String = "",
     /** Categories synced automatically from the backend, used as market filter chips. */
     val marketCategories: List<MarketCategory> = emptyList(),
     /** Selected market category id; null means "全部". */

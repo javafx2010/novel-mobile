@@ -49,6 +49,9 @@ data class MarketCategory(val id: Long, val name: String)
  */
 object MarketApi {
 
+    /** Backend address, fixed at build time (the market address is not user-configurable). */
+    private const val BASE_URL = "http://43.173.26.117:8080"
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(180, TimeUnit.SECONDS)
@@ -69,7 +72,7 @@ object MarketApi {
     ): MarketPage = withContext(Dispatchers.IO) {
         val category = categoryId?.let { "&categoryId=$it" } ?: ""
         val url =
-            "${ServerConfig.baseUrl()}/market/books?language=$language&sort=update&page=$page&size=$size$category"
+            "${BASE_URL}/market/books?language=$language&sort=update&page=$page&size=$size$category"
         val request = Request.Builder().url(url).header("Accept", "application/json").build()
         client.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) throw IOException("市场加载失败（HTTP ${resp.code}）")
@@ -81,7 +84,7 @@ object MarketApi {
     /** Backend categories, fetched automatically so the market can show filter chips. */
     suspend fun fetchCategories(language: String = "all"): List<MarketCategory> =
         withContext(Dispatchers.IO) {
-            val url = "${ServerConfig.baseUrl()}/categories?language=$language"
+            val url = "${BASE_URL}/categories?language=$language"
             val request = Request.Builder().url(url).header("Accept", "application/json").build()
             client.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) throw IOException("分类加载失败（HTTP ${resp.code}）")
@@ -92,7 +95,7 @@ object MarketApi {
 
     /** One book's current market entry (used by the background update check). */
     suspend fun fetchBook(id: Long): MarketItem? = withContext(Dispatchers.IO) {
-        val url = "${ServerConfig.baseUrl()}/market/books/$id"
+        val url = "${BASE_URL}/market/books/$id"
         val request = Request.Builder().url(url).header("Accept", "application/json").build()
         client.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) return@use null
@@ -108,7 +111,7 @@ object MarketApi {
      */
     suspend fun fetchMarketCategories(language: String = "all"): List<MarketCategory>? =
         withContext(Dispatchers.IO) {
-            val url = "${ServerConfig.baseUrl()}/market/categories?language=$language"
+            val url = "${BASE_URL}/market/categories?language=$language"
             val request = Request.Builder().url(url).header("Accept", "application/json").build()
             runCatching {
                 client.newCall(request).execute().use { resp ->
@@ -203,6 +206,6 @@ object MarketApi {
                 "http",
                 ignoreCase = true
             )
-        ) path else ServerConfig.baseUrl() + path
+        ) path else BASE_URL + path
     }
 }

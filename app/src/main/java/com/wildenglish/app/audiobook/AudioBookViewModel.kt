@@ -13,7 +13,6 @@ import com.wildenglish.app.audiobook.data.ImportResult
 import com.wildenglish.app.audiobook.data.MarketApi
 import com.wildenglish.app.audiobook.data.MarketItem
 import com.wildenglish.app.audiobook.data.MarketSyncStore
-import com.wildenglish.app.audiobook.data.ServerConfig
 import com.wildenglish.app.audiobook.data.VoiceCache
 import com.wildenglish.app.audiobook.data.VoiceStorage
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
@@ -54,9 +53,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     private var syncJob: Job? = null
 
     init {
-        ServerConfig.init(application)
         AppSettings.init(application)
-        _state.update { it.copy(serverAddress = ServerConfig.baseUrl()) }
         // 音色与配音目录属于全局设置，改完界面立即反映（并用于“设置”页展示）。
         viewModelScope.launch {
             AppSettings.state.collect { settings ->
@@ -229,34 +226,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             _state.update { it.copy(marketCategories = categories) }
         }
     }
-
-    /**
-     * Saves a new backend address and reloads the market from it.
-     *
-     * @return false when the input is not a valid http(s) URL (nothing is changed)
-     */
-    fun setServerAddress(raw: String): Boolean {
-        if (!ServerConfig.set(getApplication(), raw)) return false
-        marketJob?.cancel()
-        _state.update {
-            it.copy(
-                serverAddress = ServerConfig.baseUrl(),
-                error = null,
-                marketItems = emptyList(),
-                marketPage = -1,
-                marketTotalPages = 0,
-                marketTotalElements = 0,
-                marketLoading = false,
-                marketCategories = emptyList(),
-                selectedMarketCategoryId = null,
-            )
-        }
-        loadMarketCategories()
-        loadMarket(reset = true)
-        return true
-    }
-
-    fun resetServerAddress() = setServerAddress(ServerConfig.DEFAULT_BASE_URL)
 
     /** Loads the first page (reset) or the next page, appending to [AudioBookUiState.marketItems]. */
     private fun loadMarket(reset: Boolean) {
