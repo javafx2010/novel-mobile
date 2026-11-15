@@ -40,11 +40,29 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 
-private val coverCache = LruCache<String, ImageBitmap>(24)
+private val coverCache = LruCache<String, ImageBitmap>(12)
 
+/** 封面最长边的解码上限（px）：书架格子约 500px、详情页 450px、播放页背景约 1080px，够用。 */
+private const val COVER_MAX_EDGE = 1280
+
+/**
+ * 按显示尺寸采样解码封面，避免把上千像素的原图整张读进内存。
+ * 全尺寸解码会产生十几 MB 的 Bitmap，触发大 GC 并让 UI 掉帧。
+ */
 private suspend fun loadBitmap(key: String, file: File): ImageBitmap? = withContext(Dispatchers.IO) {
     if (!file.isFile) return@withContext null
-    val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return@withContext null
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.absolutePath, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+
+    var sample = 1
+    while (bounds.outWidth / sample > COVER_MAX_EDGE ||
+        bounds.outHeight / sample > COVER_MAX_EDGE
+    ) {
+        sample *= 2
+    }
+    val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+    val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return@withContext null
     val image = bitmap.asImageBitmap()
     coverCache.put(key, image)
     image
@@ -53,7 +71,10 @@ private suspend fun loadBitmap(key: String, file: File): ImageBitmap? = withCont
 /** Loads (and caches) a cover bitmap from a local file. */
 @Composable
 fun rememberCover(file: File?): ImageBitmap? {
-    val key = file?.let { it.absolutePath + ":" + it.lastModified() }
+    // lastModified() 是一次磁盘 stat，用 remember 缓存，避免每次重组都在主线程执行。
+    val key = remember(file?.absolutePath) {
+        file?.let { it.absolutePath + ":" + it.lastModified() }
+    }
     val image by produceState<ImageBitmap?>(
         initialValue = key?.let { coverCache.get(it) },
         key1 = key,
@@ -67,7 +88,7 @@ fun rememberCover(file: File?): ImageBitmap? {
     return image
 }
 
-private val remoteCoverCache = LruCache<String, ImageBitmap>(32)
+private val remoteCoverCache = LruCache<String, ImageBitmap>(16)
 
 /** Loads (and caches) a cover bitmap over the network, e.g. a market cover from the backend. */
 @Composable

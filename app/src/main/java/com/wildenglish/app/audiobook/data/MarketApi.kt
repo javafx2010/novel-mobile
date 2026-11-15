@@ -52,6 +52,9 @@ object MarketApi {
     /** Backend address, fixed at build time (the market address is not user-configurable). */
     private const val BASE_URL = "http://43.173.26.117:8080"
 
+    /** 书城封面解码的最长边上限（px），与本地封面一致，避免大图进内存。 */
+    private const val COVER_MAX_EDGE = 1280
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(180, TimeUnit.SECONDS)
@@ -157,7 +160,19 @@ object MarketApi {
                 if (bytes == null || bytes.isEmpty()) {
                     null
                 } else {
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                    // 按显示尺寸采样，避免整张高清封面进内存造成 GC 掉帧。
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                    var sample = 1
+                    if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                        while (bounds.outWidth / sample > COVER_MAX_EDGE ||
+                            bounds.outHeight / sample > COVER_MAX_EDGE
+                        ) {
+                            sample *= 2
+                        }
+                    }
+                    val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)?.asImageBitmap()
                 }
             }
         }.getOrNull()
