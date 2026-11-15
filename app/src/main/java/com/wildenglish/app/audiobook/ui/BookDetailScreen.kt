@@ -20,10 +20,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -161,37 +159,6 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                             )
                         },
                     )
-
-                    val prep = state.voicePrep[book.id]
-                    val offlineReady = book.id in state.readyVoiceBookIds
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        when {
-                            prep != null && prep.total > 0 ->
-                                "正在预生成离线配音 ${prep.done}/${prep.total}，完成后朗读无需联网且更流畅"
-
-                            prep != null -> "正在准备离线配音…"
-                            offlineReady -> "离线配音已就绪，朗读无需联网"
-                            else -> "尚未生成离线配音，朗读时将在线合成"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (prep != null && prep.total > 0) {
-                        Spacer(Modifier.height(6.dp))
-                        LinearProgressIndicator(
-                            progress = { prep.done.toFloat() / prep.total.toFloat() },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else if (prep == null) {
-                        Spacer(Modifier.height(6.dp))
-                        FilledTonalButton(
-                            onClick = { vm.prepareVoice(book.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(if (offlineReady) "重新生成离线配音" else "预生成离线配音")
-                        }
-                    }
                 }
             }
 
