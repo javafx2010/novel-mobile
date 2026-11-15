@@ -4,8 +4,10 @@ import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.Chapter
 import com.wildenglish.app.audiobook.data.MarketCategory
 import com.wildenglish.app.audiobook.data.MarketItem
+import com.wildenglish.app.audiobook.data.VoiceConfig
+import com.wildenglish.app.audiobook.data.VoiceStorageMode
 
-enum class Screen { LIBRARY, DETAIL, PLAYER, READER, MARKET }
+enum class Screen { LIBRARY, DETAIL, PLAYER, READER, MARKET, SETTINGS }
 
 /** Progress of pre-synthesizing a book's whole voice track into local cache. */
 data class VoicePrepProgress(
@@ -25,8 +27,6 @@ data class AudioBookUiState(
     val chapterIndex: Int = 0,
     /** All sentences of the current chapter, read aloud one by one. */
     val sentences: List<String> = emptyList(),
-    /** 每句的说话角色（旁白 / 角色名），与 [sentences] 一一对应。 */
-    val roles: List<String> = emptyList(),
     /** Index into [sentences] currently being spoken; -1 when unknown. */
     val currentSentenceIndex: Int = -1,
     val isPlaying: Boolean = false,
@@ -56,13 +56,18 @@ data class AudioBookUiState(
     val marketCategories: List<MarketCategory> = emptyList(),
     /** Selected market category id; null means "全部". */
     val selectedMarketCategoryId: Long? = null,
+    /** 全局朗读音色：全书统一，不区分角色。 */
+    val voice: VoiceConfig = VoiceConfig.DEFAULT,
+    /** 配音文件存储方式（自动 / 内部 / 外部 / 自定义目录）。 */
+    val storageMode: VoiceStorageMode = VoiceStorageMode.AUTO,
+    /** 自定义目录的 SAF tree uri。 */
+    val customTreeUri: String? = null,
+    /** 当前实际写入配音文件的目录，展示在设置页。 */
+    val storagePath: String = "",
 ) {
     val currentBook: Audiobook? get() = books.firstOrNull { it.id == currentBookId }
     val currentChapter: Chapter? get() = currentBook?.chapters?.getOrNull(chapterIndex)
     val hasActivePlayer: Boolean get() = sentences.isNotEmpty()
-
-    /** 当前句的说话角色（旁白 / 角色名）。 */
-    val currentRole: String get() = roles.getOrNull(currentSentenceIndex).orEmpty()
 
     /** Whether another market page can be fetched. */
     val marketHasMore: Boolean get() = marketPage >= 0 && marketPage + 1 < marketTotalPages

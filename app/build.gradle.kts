@@ -36,6 +36,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    // SAF folders: lets the user keep voice files in a directory they pick.
+    implementation("androidx.documentfile:documentfile:1.0.1")
     // Microsoft Edge TTS streams synthesized speech over a WebSocket.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     debugImplementation("androidx.compose.ui:ui-tooling")

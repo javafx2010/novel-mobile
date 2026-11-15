@@ -1,7 +1,7 @@
 package com.wildenglish.app.audiobook.playback
 
+import com.wildenglish.app.audiobook.data.AppSettings
 import com.wildenglish.app.audiobook.data.Audiobook
-import com.wildenglish.app.audiobook.data.RoleVoices
 import com.wildenglish.app.audiobook.data.VoiceCache
 import com.wildenglish.app.audiobook.data.VoiceConfig
 import com.wildenglish.app.audiobook.data.loadChapterSentences
@@ -12,18 +12,17 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
- * Non-empty sentence slots for a book, using the same chapter/index pairing and
- * the same per-role voices as [VoicePreGenerator] and playback, so readiness
- * checks stay consistent.
+ * Non-empty sentence slots for a book, using the same chapter/index pairing and the same global
+ * voice as [VoicePreGenerator] and playback, so readiness checks stay consistent.
  */
 internal fun voiceSlots(book: Audiobook): List<VoiceCache.Slot> {
+    val voice = AppSettings.voice()
     val slots = ArrayList<VoiceCache.Slot>()
     book.chapters.forEach { chapter ->
         val sentences = loadChapterSentences(chapter)
-        val roles = RoleVoices.assign(sentences)
         sentences.forEachIndexed { index, raw ->
             if (raw.trim().isNotEmpty()) {
-                slots.add(VoiceCache.Slot(chapter.index, index, roles[index].voice.name))
+                slots.add(VoiceCache.Slot(chapter.index, index, voice.name))
             }
         }
     }
@@ -36,6 +35,8 @@ data class PrepareResult(
     val synthesized: Int,
     val skipped: Int,
     val failed: Int,
+    /** True when the last failure came from storage rather than the network. */
+    val storageFailed: Boolean = false,
 ) {
     // An empty book has nothing to synthesize and counts as ready.
     val isComplete: Boolean get() = failed == 0
@@ -44,10 +45,12 @@ data class PrepareResult(
 /**
  * Bulk-synthesizes every sentence of a book into [VoiceCache] ahead of time.
  *
- * Sequential on purpose: Microsoft throttles bursts of parallel requests with
- * 403, and each sentence is its own WebSocket handshake. Requests are
- * idempotent from the cache's point of view — an interrupted run leaves
- * completed files behind and the next run skips them, so it is resumable.
+ * The whole book uses one voice (the one picked in the settings) — no per-character cast.
+ *
+ * Sequential on purpose: Microsoft throttles bursts of parallel requests with 403, and each
+ * sentence is its own WebSocket handshake. Requests are idempotent from the cache's point of
+ * view — an interrupted run leaves completed files behind and the next run skips them, so it is
+ * resumable.
  */
 class VoicePreGenerator {
 
@@ -59,17 +62,14 @@ class VoicePreGenerator {
         book: Audiobook,
         onProgress: (done: Int, total: Int) -> Unit,
     ): PrepareResult = withContext(Dispatchers.IO) {
+        val voice = AppSettings.voice()
         val jobs = ArrayList<SentenceJob>()
         book.chapters.forEach { chapter ->
             val sentences = loadChapterSentences(chapter)
-            // 分角色配音：旁白与每个角色各用一个音色，逐句分配。
-            val roles = RoleVoices.assign(sentences)
             sentences.forEachIndexed { index, raw ->
                 val text = raw.trim()
                 if (text.isNotEmpty()) {
-                    jobs.add(
-                        SentenceJob(chapter.index, index, text, roles[index].voice)
-                    )
+                    jobs.add(SentenceJob(chapter.index, index, text, voice))
                 }
             }
         }
@@ -78,13 +78,13 @@ class VoicePreGenerator {
         var synthesized = 0
         var skipped = 0
         var failed = 0
+        var storageFailed = false
         var done = 0
         var consecutiveFailures = 0
-        val dir = book.dir
 
         // Already fully cached (e.g. .ready was lost): reuse files, do not re-synthesize.
         val already = jobs.count {
-            VoiceCache.hasFile(dir, it.chapterIndex, it.sentenceIndex, it.voice.name)
+            VoiceCache.hasFile(book.id, it.chapterIndex, it.sentenceIndex, it.voice.name)
         }
         if (already == total) {
             onProgress(total, total)
@@ -94,7 +94,7 @@ class VoicePreGenerator {
 
         for (job in jobs) {
             currentCoroutineContext().ensureActive()
-            if (VoiceCache.hasFile(dir, job.chapterIndex, job.sentenceIndex, job.voice.name)) {
+            if (VoiceCache.hasFile(book.id, job.chapterIndex, job.sentenceIndex, job.voice.name)) {
                 skipped++
                 consecutiveFailures = 0
             } else {
@@ -110,35 +110,43 @@ class VoicePreGenerator {
                 } catch (e: Exception) {
                     null
                 }
-                // A re-import may have replaced the book dir while the request
-                // was in flight; never write stale audio into the fresh book.
+                // A re-import may have replaced the book dir while the request was in flight;
+                // never write stale audio into the fresh book.
                 currentCoroutineContext().ensureActive()
                 if (bytes == null || bytes.isEmpty()) {
                     failed++
                     consecutiveFailures++
                 } else {
-                    VoiceCache.put(
-                        dir,
+                    // A failed write means the configured directory is unusable: count it as a
+                    // failure (the cache already published the error for the UI).
+                    val stored = VoiceCache.put(
+                        book.id,
                         job.chapterIndex,
                         job.sentenceIndex,
                         job.voice.name,
                         bytes,
                     )
-                    synthesized++
-                    consecutiveFailures = 0
+                    if (stored) {
+                        synthesized++
+                        consecutiveFailures = 0
+                    } else {
+                        failed++
+                        storageFailed = true
+                        consecutiveFailures++
+                    }
                 }
             }
             done++
             onProgress(done, total)
-            // Network is clearly unavailable: stop hammering and leave the rest
-            // for a later run, which resumes from the files already written.
+            // Network is clearly unavailable (or the directory refuses writes): stop hammering
+            // and leave the rest for a later run, which resumes from the files already written.
             if (consecutiveFailures >= ABORT_AFTER_FAILURES) {
                 failed += total - done
                 break
             }
         }
 
-        val result = PrepareResult(total, synthesized, skipped, failed)
+        val result = PrepareResult(total, synthesized, skipped, failed, storageFailed)
         if (result.isComplete) VoiceCache.markReady(book)
         result
     }

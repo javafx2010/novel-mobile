@@ -225,16 +225,6 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        // 分角色配音：标出这一句是谁在说（旁白 / 角色名）。
-                        if (state.currentRole.isNotBlank()) {
-                            Text(
-                                text = state.currentRole,
-                                fontSize = 11.sp,
-                                letterSpacing = 2.sp,
-                                color = waterTint,
-                                modifier = Modifier.padding(top = 10.dp),
-                            )
-                        }
                         WaterWipeSentence(
                             text = currentSentence,
                             index = state.currentSentenceIndex,

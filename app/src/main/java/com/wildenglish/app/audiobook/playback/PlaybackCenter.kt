@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Intent
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.AudiobookLibrary
-import com.wildenglish.app.audiobook.data.RoleVoices
 import com.wildenglish.app.audiobook.data.loadChapterSentences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,8 +22,6 @@ data class PlaybackSnapshot(
     val book: Audiobook? = null,
     val chapterIndex: Int = 0,
     val sentences: List<String> = emptyList(),
-    /** 每句的说话角色（旁白 / 角色名），与 [sentences] 一一对应。 */
-    val roles: List<String> = emptyList(),
     val currentSentenceIndex: Int = -1,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
@@ -36,7 +33,6 @@ data class PlaybackSnapshot(
     val title: String get() = book?.title.orEmpty()
     val chapterTitle: String get() = book?.chapters?.getOrNull(chapterIndex)?.title.orEmpty()
     val currentSentence: String get() = sentences.getOrNull(currentSentenceIndex).orEmpty()
-    val currentRole: String get() = roles.getOrNull(currentSentenceIndex).orEmpty()
     val coverFile: File? get() = book?.coverFile
 }
 
@@ -125,10 +121,7 @@ object PlaybackCenter {
         VoicePrepCenter.prioritize(book.id)
         loadJob?.cancel()
         loadJob = scope.launch {
-            val (sentences, roles) = withContext(Dispatchers.IO) {
-                val parsed = loadChapterSentences(chapter)
-                parsed to RoleVoices.assign(parsed).map { it.role }
-            }
+            val sentences = withContext(Dispatchers.IO) { loadChapterSentences(chapter) }
             if (sentences.isEmpty()) {
                 speech.stop()
                 _snapshot.update {
@@ -136,7 +129,6 @@ object PlaybackCenter {
                         book = book,
                         chapterIndex = index,
                         sentences = emptyList(),
-                        roles = emptyList(),
                         isBuffering = false,
                         isPlaying = false,
                         error = "本章没有可朗读的文稿",
@@ -153,7 +145,6 @@ object PlaybackCenter {
                     book = book,
                     chapterIndex = index,
                     sentences = sentences,
-                    roles = roles,
                     currentSentenceIndex = start,
                     isBuffering = !it.ttsReady,
                     error = null,
@@ -216,7 +207,6 @@ object PlaybackCenter {
             it.copy(
                 book = null,
                 sentences = emptyList(),
-                roles = emptyList(),
                 currentSentenceIndex = -1,
                 isPlaying = false,
                 isBuffering = false,

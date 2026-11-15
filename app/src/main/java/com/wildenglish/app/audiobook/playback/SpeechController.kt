@@ -8,8 +8,8 @@ import android.media.PlaybackParams
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import com.wildenglish.app.audiobook.data.AppSettings
 import com.wildenglish.app.audiobook.data.Audiobook
-import com.wildenglish.app.audiobook.data.RoleVoices
 import com.wildenglish.app.audiobook.data.VoiceCache
 import com.wildenglish.app.audiobook.data.VoiceConfig
 import kotlinx.coroutines.CancellationException
@@ -20,7 +20,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -70,11 +69,11 @@ class SpeechController(
     @Volatile
     private var generation = 0
 
-    /** Per-sentence voice: 旁白 / 每个角色各一个音色（分角色配音）。 */
+    /** 整本书用同一个音色朗读（音色在设置中选择，不区分角色）。 */
     @Volatile
-    private var voices: List<VoiceConfig> = emptyList()
+    private var voice: VoiceConfig = VoiceConfig.DEFAULT
     @Volatile
-    private var cacheDir: File? = null
+    private var bookId: String? = null
     @Volatile
     private var chapterIndex = 0
 
@@ -106,10 +105,10 @@ class SpeechController(
         if (released) return@post
         this.sentences = sentences
         this.speed = speed.coerceIn(0.5f, 2.0f)
-        this.cacheDir = book.dir
+        this.bookId = book.id
         this.chapterIndex = chapterIndex
-        // 分角色配音：同一句在预生成与实时合成中必须得到同一个音色。
-        voices = RoleVoices.assign(sentences).map { it.voice }
+        // 全书统一音色：预生成与实时合成都读设置里的同一个音色，缓存才能命中。
+        voice = AppSettings.voice()
         playing = true
         callback.onPlayingChanged(true)
         startRun(startIndex.coerceIn(0, (sentences.size - 1).coerceAtLeast(0)))
@@ -229,7 +228,7 @@ class SpeechController(
             return
         }
 
-        if (!VoiceCache.hasFile(cacheDir, chapterIndex, index, voiceAt(index).name)) {
+        if (!VoiceCache.hasFile(bookId.orEmpty(), chapterIndex, index, voice.name)) {
             main.post { if (gen == generation && playing) callback.onBuffering(true) }
         }
         run.launch {
@@ -269,24 +268,19 @@ class SpeechController(
         null
     }
 
-    /** Voice assigned to [index]; narrates with the last known voice as a safety net. */
-    private fun voiceAt(index: Int): VoiceConfig =
-        voices.getOrNull(index)
-            ?: voices.lastOrNull()
-            ?: VoiceConfig.narrator(VoiceConfig.DEFAULT_LANG)
-
     /** Cache hit -> disk; miss -> live synthesis, written back to the cache. */
     private suspend fun resolveAudio(index: Int): ByteArray? {
-        val dir = cacheDir
-        val voice = voiceAt(index)
-        VoiceCache.get(dir, chapterIndex, index, voice.name)?.let { return it }
+        val id = bookId ?: return null
         val text = sentences.getOrNull(index)?.trim().orEmpty()
         if (text.isEmpty()) return ByteArray(0)
+        VoiceCache.get(id, chapterIndex, index, voice.name)?.let { return it }
         return try {
             // Live cache-miss: insert at the FRONT of the global synthesis queue
             // so it never waits behind the background dubbing backlog.
             val bytes = VoiceSynth.synthesize(text, voice.name, voice.lang, priority = true)
-            VoiceCache.put(dir, chapterIndex, index, voice.name, bytes)
+            // A failed write is reported by the cache itself; playback still continues from
+            // the in-memory bytes instead of stopping.
+            VoiceCache.put(id, chapterIndex, index, voice.name, bytes)
             bytes
         } catch (e: CancellationException) {
             throw e

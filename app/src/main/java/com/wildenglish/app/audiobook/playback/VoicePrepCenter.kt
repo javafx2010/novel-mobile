@@ -3,6 +3,7 @@ package com.wildenglish.app.audiobook.playback
 import android.app.Application
 import android.content.Intent
 import com.wildenglish.app.audiobook.VoicePrepProgress
+import com.wildenglish.app.audiobook.data.AppSettings
 import com.wildenglish.app.audiobook.data.AudiobookLibrary
 import com.wildenglish.app.audiobook.data.VoiceCache
 import kotlinx.coroutines.CancellationException
@@ -58,7 +59,17 @@ object VoicePrepCenter {
 
     fun init(application: Application) {
         app = application
+        AppSettings.init(application)
         VoiceCache.init(application)
+    }
+
+    /**
+     * 设置里的音色或配音目录变了：已有的离线音频不再匹配，停止当前任务并重新扫描书库，
+     * 未按新音色生成的书会重新排队配音。
+     */
+    fun onSettingsChanged() {
+        stopAll()
+        refresh()
     }
 
     /** Called when the app comes to the foreground / on boot: resume any unfinished books. */

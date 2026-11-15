@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -81,6 +82,10 @@ fun LibraryScreen(
                 )
             }
             val dark = isSystemInDarkTheme()
+            GlassIconButton(onClick = vm::openSettings, dark = dark) {
+                Icon(Icons.Filled.Settings, contentDescription = "设置")
+            }
+            androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
             GlassIconButton(onClick = vm::openMarket, dark = dark) {
                 Icon(Icons.Filled.Storefront, contentDescription = "图书市场")
             }

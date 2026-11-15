@@ -2,9 +2,11 @@ package com.wildenglish.app.audiobook
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wildenglish.app.audiobook.data.AppSettings
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.AudiobookLibrary
 import com.wildenglish.app.audiobook.data.ImportResult
@@ -12,6 +14,9 @@ import com.wildenglish.app.audiobook.data.MarketApi
 import com.wildenglish.app.audiobook.data.MarketItem
 import com.wildenglish.app.audiobook.data.MarketSyncStore
 import com.wildenglish.app.audiobook.data.ServerConfig
+import com.wildenglish.app.audiobook.data.VoiceCache
+import com.wildenglish.app.audiobook.data.VoiceStorage
+import com.wildenglish.app.audiobook.data.VoiceStorageMode
 import com.wildenglish.app.audiobook.playback.PlaybackCenter
 import com.wildenglish.app.audiobook.playback.VoicePrepCenter
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +55,28 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         ServerConfig.init(application)
+        AppSettings.init(application)
         _state.update { it.copy(serverAddress = ServerConfig.baseUrl()) }
+        // 音色与配音目录属于全局设置，改完界面立即反映（并用于“设置”页展示）。
+        viewModelScope.launch {
+            AppSettings.state.collect { settings ->
+                val path = withContext(Dispatchers.IO) { VoiceStorage.describe(getApplication()) }
+                _state.update {
+                    it.copy(
+                        voice = settings.voice,
+                        storageMode = settings.storageMode,
+                        customTreeUri = settings.customTreeUri,
+                        storagePath = path,
+                    )
+                }
+            }
+        }
+        // 配音文件写入失败（SD 卡不可写等）直接提示用户。
+        viewModelScope.launch {
+            VoiceCache.error.collect { message ->
+                if (message != null) _state.update { it.copy(error = message) }
+            }
+        }
         // Mirror the resident service's observable state into the UI.
         viewModelScope.launch {
             VoicePrepCenter.progress.collect { p -> _state.update { it.copy(voicePrep = p) } }
@@ -66,7 +92,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                         currentBookId = snap.book?.id ?: ui.currentBookId,
                         chapterIndex = if (snap.book != null) snap.chapterIndex else ui.chapterIndex,
                         sentences = if (snap.book != null) snap.sentences else ui.sentences,
-                        roles = if (snap.book != null) snap.roles else ui.roles,
                         currentSentenceIndex = if (snap.book != null) {
                             snap.currentSentenceIndex
                         } else {
@@ -135,7 +160,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                     currentBookId = if (wasCurrent) null else it.currentBookId,
                     screen = if (wasCurrent) Screen.LIBRARY else it.screen,
                     sentences = if (wasCurrent) emptyList() else it.sentences,
-                    roles = if (wasCurrent) emptyList() else it.roles,
                     isPlaying = if (wasCurrent) false else it.isPlaying,
                 )
             }
@@ -151,7 +175,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 currentBookId = id,
                 chapterIndex = savedChapter.coerceIn(0, (book.chapters.size - 1).coerceAtLeast(0)),
                 sentences = emptyList(),
-                roles = emptyList(),
                 currentSentenceIndex = -1,
                 error = null,
             )
@@ -378,6 +401,41 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         VoicePrepCenter.regenerate(bookId)
     }
 
+    // ---- Settings (朗读音色 / 配音存储目录) ----
+
+    fun openSettings() = _state.update { it.copy(screen = Screen.SETTINGS, error = null) }
+
+    /**
+     * 换朗读音色。整本书统一用这个音色，已缓存的音频是按旧音色生成的，
+     * 因此让后台按新音色重新生成（旧文件不再命中）。
+     */
+    fun setVoice(name: String) {
+        if (_state.value.voice.name == name) return
+        AppSettings.setVoice(name)
+        VoicePrepCenter.onSettingsChanged()
+    }
+
+    /** 换配音文件存储位置；新目录里没有旧音频，未生成的书会重新排队配音。 */
+    fun setStorageMode(mode: VoiceStorageMode) {
+        if (_state.value.storageMode == mode) return
+        AppSettings.setStorageMode(mode)
+        VoicePrepCenter.onSettingsChanged()
+    }
+
+    /** 用户在系统文件选择器里选定的自定义配音目录（长期授权）。 */
+    fun setStorageTree(uri: Uri?) {
+        val target = uri ?: return
+        runCatching {
+            getApplication<Application>().contentResolver.takePersistableUriPermission(
+                target,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        AppSettings.setCustomTreeUri(target.toString())
+        AppSettings.setStorageMode(VoiceStorageMode.CUSTOM)
+        VoicePrepCenter.onSettingsChanged()
+    }
+
     // ---- Reader theme ----
 
     fun setReaderTheme(theme: ReaderTheme) {
@@ -506,12 +564,14 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             Screen.PLAYER -> _state.update { it.copy(screen = Screen.DETAIL) }
             Screen.DETAIL -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.MARKET -> _state.update { it.copy(screen = Screen.LIBRARY) }
+            Screen.SETTINGS -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.LIBRARY -> Unit
         }
     }
 
     fun dismissError() {
         PlaybackCenter.dismissError()
+        VoiceCache.dismissError()
         _state.update { it.copy(error = null) }
     }
 
