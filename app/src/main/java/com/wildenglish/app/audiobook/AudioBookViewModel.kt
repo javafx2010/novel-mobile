@@ -107,7 +107,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                         isBuffering = snap.isBuffering,
                         ttsReady = snap.ttsReady,
                         speed = snap.speed,
-                        lastBookId = snap.book?.id ?: ui.lastBookId,
                         error = if (snap.error != null || snap.book != null) snap.error else ui.error,
                     )
                 }
@@ -124,17 +123,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val books = withContext(Dispatchers.IO) { library.listBooks() }
-            val lastId = withContext(Dispatchers.IO) { library.lastBookId() }
-            val lastChapter = lastId?.let { library.progressOf(it).first } ?: 0
-            _state.update {
-                it.copy(
-                    isLoading = false,
-                    books = books,
-                    // 最近收听的书被删除后不再展示「继续收听」。
-                    lastBookId = lastId?.takeIf { id -> books.any { b -> b.id == id } },
-                    lastBookChapterIndex = lastChapter,
-                )
-            }
+            _state.update { it.copy(isLoading = false, books = books) }
         }
     }
 
@@ -492,13 +481,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     // ---- 阅读统计 / 目标 / 成就 ----
 
     fun openStats() = _state.update { it.copy(screen = Screen.STATS, error = null) }
-
-    /** 首页「继续收听」：打开这本书并从上次的章节/位置接着朗读。 */
-    fun resumeBook(id: String) {
-        if (_state.value.books.none { it.id == id }) return
-        openBook(id)
-        playSaved()
-    }
 
     fun setDailyGoalMinutes(minutes: Int) = AppSettings.setDailyGoalMinutes(minutes)
 

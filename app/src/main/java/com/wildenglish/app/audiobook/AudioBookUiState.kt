@@ -71,9 +71,6 @@ data class AudioBookUiState(
     val yearPlanBooks: Int = 24,
     /** 收听时长 / 连续天数 / 读完书统计。 */
     val stats: ReadingStatsSnapshot = ReadingStatsSnapshot(),
-    /** 最近收听的书，用于首页「继续收听」。 */
-    val lastBookId: String? = null,
-    val lastBookChapterIndex: Int = 0,
 ) {
     val currentBook: Audiobook? get() = books.firstOrNull { it.id == currentBookId }
     val currentChapter: Chapter? get() = currentBook?.chapters?.getOrNull(chapterIndex)
@@ -81,9 +78,6 @@ data class AudioBookUiState(
 
     /** Whether another market page can be fetched. */
     val marketHasMore: Boolean get() = marketPage >= 0 && marketPage + 1 < marketTotalPages
-
-    /** 首页「继续收听」展示的书（最近收听且仍在书架里）。 */
-    val lastBook: Audiobook? get() = books.firstOrNull { it.id == lastBookId }
 
     /** 今日阅读目标完成度 0..1。 */
     val dailyGoalProgress: Float

@@ -2,6 +2,7 @@
 
 package com.wildenglish.app.audiobook.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,7 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -39,11 +40,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
 import com.wildenglish.app.audiobook.data.Achievement
@@ -118,8 +124,14 @@ fun StatsScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             }
-            items(achievements, key = { it.id }) { achievement ->
-                AchievementRow(achievement, dark)
+            items(achievements.chunked(3)) { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    row.forEach { achievement -> BadgeCell(achievement) }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
     }
@@ -345,71 +357,79 @@ private fun YearPlanCard(state: AudioBookUiState, dark: Boolean, onEdit: () -> U
 }
 
 @Composable
-private fun AchievementRow(achievement: Achievement, dark: Boolean) {
+private fun RowScope.BadgeCell(achievement: Achievement) {
     val unlocked = achievement.unlocked
-    Row(
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .glass(shape = RoundedCornerShape(18.dp), dark = dark)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .weight(1f)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(
-                    if (unlocked) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-                    else MaterialTheme.colorScheme.surfaceVariant
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (unlocked) Icons.Filled.Star else Icons.Filled.Lock,
-                contentDescription = null,
-                tint = if (unlocked) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp),
-        ) {
-            Text(
-                achievement.title,
-                fontSize = 15.sp,
-                fontWeight = if (unlocked) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (unlocked) MaterialTheme.colorScheme.onBackground
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                achievement.desc,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (!unlocked) {
-                Spacer(Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { achievement.progress },
+        Box(Modifier.size(74.dp)) {
+            val badge = BADGE_RES[achievement.id]
+            if (badge != null) {
+                Image(
+                    painter = painterResource(badge),
+                    contentDescription = achievement.title,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .alpha(if (unlocked) 1f else 0.32f),
                 )
             }
+            if (!unlocked) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(12.dp),
+                    )
+                }
+            }
         }
+        Spacer(Modifier.height(5.dp))
+        Text(
+            achievement.title,
+            fontSize = 12.sp,
+            fontWeight = if (unlocked) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (unlocked) MaterialTheme.colorScheme.onBackground
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         Text(
             if (unlocked) "已达成" else "${achievement.current}/${achievement.target}",
-            fontSize = 12.sp,
+            fontSize = 10.sp,
             color = if (unlocked) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 10.dp),
         )
     }
 }
+
+/** 成就 id -> ComfyUI 生成的徽章图（无解锁状态，锁定时界面置灰）。 */
+private val BADGE_RES: Map<String, Int> = mapOf(
+    "first" to R.drawable.badge_first,
+    "streak3" to R.drawable.badge_streak3,
+    "streak7" to R.drawable.badge_streak7,
+    "streak30" to R.drawable.badge_streak30,
+    "hours10" to R.drawable.badge_hours10,
+    "hours50" to R.drawable.badge_hours50,
+    "hours100" to R.drawable.badge_hours100,
+    "book1" to R.drawable.badge_book1,
+    "book5" to R.drawable.badge_book5,
+    "book10" to R.drawable.badge_book10,
+    "year" to R.drawable.badge_year,
+    "goal" to R.drawable.badge_goal,
+)
 
 @Composable
 private fun PlanDialog(current: Int, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
