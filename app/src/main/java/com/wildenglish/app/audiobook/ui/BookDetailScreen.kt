@@ -181,7 +181,6 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                             chapter = chapter,
                             isCurrent = index == state.chapterIndex,
                             onClick = { vm.playChapter(book, index) },
-                            onOpenText = { vm.openDocument(book, index) },
                         )
                         if (index < book.chapters.lastIndex) RowDivider(52.dp)
                     }
@@ -243,13 +242,12 @@ private fun ChapterRow(
     chapter: Chapter,
     isCurrent: Boolean,
     onClick: () -> Unit,
-    onOpenText: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -258,23 +256,14 @@ private fun ChapterRow(
             fontSize = 15.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Column(Modifier.weight(1f)) {
-            Text(
-                chapter.title,
-                fontSize = 16.sp,
-                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                "文稿朗读",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (chapter.textFile != null || chapter.cuesFile != null) {
-            TextButton(onClick = onOpenText) { Text("文稿") }
-        }
+        Text(
+            chapter.title,
+            modifier = Modifier.weight(1f),
+            fontSize = 16.sp,
+            fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
