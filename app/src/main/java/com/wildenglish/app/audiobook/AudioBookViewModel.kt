@@ -358,6 +358,8 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     fun syncMarketUpdates() {
         if (syncJob?.isActive == true) return
         syncJob = viewModelScope.launch {
+            // 避开冷启动首屏：让书架先加载显示，再静默检查书城更新。
+            delay(1500)
             val recorded = runCatching { MarketSyncStore.entries(getApplication()) }
                 .getOrDefault(emptyMap())
             if (recorded.isEmpty()) return@launch

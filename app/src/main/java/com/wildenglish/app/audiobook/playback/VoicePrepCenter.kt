@@ -74,8 +74,8 @@ object VoicePrepCenter {
 
     /** Called when the app comes to the foreground / on boot: resume any unfinished books. */
     fun onAppStart() {
+        // 交给服务的 onStartCommand 统一 refresh，避免冷启动时重复扫描两次。
         ensureService()
-        refresh()
     }
 
     /** Starts (or re-starts) the resident foreground service that owns the tray. */
@@ -93,15 +93,10 @@ object VoicePrepCenter {
             val pending = ArrayList<String>()
             withContext(Dispatchers.IO) {
                 for (book in books) {
-                    if (VoiceCache.isReady(book) || VoiceCache.confirmReady(
-                            book,
-                            voiceSlots(book)
-                        )
-                    ) {
-                        ready.add(book.id)
-                    } else {
-                        pending.add(book.id)
-                    }
+                    // 只读 .ready 标记（O(1)），不再逐句 exists() 扫整本书 —— 那是首屏
+                    // 卡顿的主因。文件已齐但标记丢失的情况由后台 VoicePreGenerator
+                    // 自己算缺失并补写标记，功能等价且不阻塞启动。
+                    if (VoiceCache.isReady(book)) ready.add(book.id) else pending.add(book.id)
                 }
             }
             _readyIds.value = ready
