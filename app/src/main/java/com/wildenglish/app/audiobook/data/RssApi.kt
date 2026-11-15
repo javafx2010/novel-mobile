@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.jsoup.Jsoup
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.IOException
@@ -162,6 +163,60 @@ object RssApi {
             m.groupValues[1].toIntOrNull(16)?.toChar()?.toString() ?: ""
         }
         return text.replace(Regex("[ \\t\\u00A0]+"), " ").trim()
+    }
+
+    /**
+     * 抓取文章网页正文（RSS 里通常只有摘要）。用 jsoup 去掉导航/脚本/样式，取最长的正文容器；
+     * 抓不到或内容太短时返回 null，调用方退回订阅里自带的正文。
+     */
+    suspend fun fetchFullText(url: String): String? = withContext(Dispatchers.IO) {
+        if (url.isBlank() || !url.startsWith("http", ignoreCase = true)) return@withContext null
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", "Mozilla/5.0 (Linux; Android) WildEnglish/1.0")
+            .header("Accept", "text/html,application/xhtml+xml")
+            .build()
+        runCatching {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val html = response.body?.string() ?: return@use null
+                extractReadable(html, url)
+            }
+        }.getOrNull()
+    }
+
+    private fun extractReadable(html: String, baseUrl: String): String? {
+        val doc = Jsoup.parse(html, baseUrl)
+        doc.select(
+            "script, style, noscript, nav, header, footer, aside, form, iframe, figure, figcaption, " +
+                    ".comment, .comments, .share, .social, .ad, .ads, .sidebar, .menu, " +
+                    ".author, .authors, .byline, .meta, .toolbar, .actions, .recommend, .related, " +
+                    ".breadcrumb"
+        ).remove()
+        val selectors = listOf(
+            "article",
+            "[role=article]",
+            ".article-content",
+            ".post-content",
+            ".entry-content",
+            ".rich_media_content",
+            "main",
+            "#content",
+            ".content",
+        )
+        // 按"越像正文越靠前"的顺序取，而不是取最长（body 往往包含整个导航）。
+        for (selector in selectors) {
+            val element = doc.selectFirst(selector) ?: continue
+            // 优先用段落文字：能自然跳过站点头部的作者/分享等 div 噪音。
+            val paragraphs = element.select("p")
+                .map { it.text().trim() }
+                .filter { it.length > 25 }
+            val joined = paragraphs.joinToString("\n")
+            if (paragraphs.size >= 3 && joined.length >= 300) return joined
+            val text = element.text().trim()
+            if (text.length >= 300) return text
+        }
+        return doc.body()?.text()?.trim()?.takeIf { it.length >= 180 }
     }
 
     private fun parseTime(raw: String?): Long? {

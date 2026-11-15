@@ -40,5 +40,7 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     // Microsoft Edge TTS streams synthesized speech over a WebSocket.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Reads the full article text behind an RSS item (feeds usually only carry a summary).
+    implementation("org.jsoup:jsoup:1.18.3")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

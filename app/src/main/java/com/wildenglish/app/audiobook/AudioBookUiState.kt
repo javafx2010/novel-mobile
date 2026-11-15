@@ -83,6 +83,8 @@ data class AudioBookUiState(
     val rssFeed: RssFeed? = null,
     val rssArticles: List<RssArticle> = emptyList(),
     val rssLoading: Boolean = false,
+    /** 正在抓取文章全文（RSS 里通常只有摘要）。 */
+    val rssPreparing: Boolean = false,
     /** 订阅文章播放器（与图书播放完全独立）。 */
     val rssPlayer: RssPlayerCenter.Status = RssPlayerCenter.Status(),
 ) {

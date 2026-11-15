@@ -574,18 +574,33 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         // 文章开始播放前暂停电子书，避免两路声音同时输出。
         PlaybackCenter.pause()
         viewModelScope.launch {
+            _state.update { it.copy(rssPreparing = true, error = null) }
             val prepared = withContext(Dispatchers.IO) {
-                val book = RssReader.prepare(getApplication(), article) ?: return@withContext null
+                // 订阅里通常只有摘要：正文过短且有链接时，抓网页正文。
+                val fullText = if (article.text.length < 600 && article.link != null) {
+                    RssApi.fetchFullText(article.link)
+                } else {
+                    null
+                }
+                val content = fullText ?: article.text
+                if (content.isBlank()) return@withContext null
+                val withText = article.copy(
+                    text = content,
+                    summary = article.summary.ifBlank { content.take(160) },
+                )
+                val book = RssReader.prepare(getApplication(), withText)
+                    ?: return@withContext null
                 RssReader.prune(getApplication())
                 val chapter = book.chapters.firstOrNull() ?: return@withContext null
                 val sentences = loadChapterSentences(chapter)
-                if (sentences.isEmpty()) null else book to sentences
+                if (sentences.isEmpty()) null else Triple(withText, book, sentences)
             }
+            _state.update { it.copy(rssPreparing = false) }
             if (prepared == null) {
                 _state.update { it.copy(error = "这篇文章没有可朗读的正文") }
                 return@launch
             }
-            RssPlayerCenter.play(article, prepared.second, prepared.first)
+            RssPlayerCenter.play(prepared.first, prepared.third, prepared.second)
             _state.update { it.copy(screen = Screen.RSS_PLAYER, error = null) }
         }
     }
