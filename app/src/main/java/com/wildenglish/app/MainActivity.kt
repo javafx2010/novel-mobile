@@ -37,9 +37,8 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        // Start the resident service + auto-resume dubbing while the app is in
-        // the foreground (required for a foreground-service start on Android 12+).
-        VoicePrepCenter.onAppStart()
+        // 首页只负责加载图书；配音扫描只在后台服务（VoicePrepService / BootReceiver）
+        // 里进行，不在 Activity 启动路径上启动服务或扫描。
         setContent {
             AudioBookTheme {
                 AudioBookApp(viewModel)

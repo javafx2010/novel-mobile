@@ -69,12 +69,15 @@ object VoicePrepCenter {
      */
     fun onSettingsChanged() {
         stopAll()
-        refresh()
+        // 扫描统一交给后台服务，不在前台直接跑。
+        ensureService()
     }
 
-    /** Called when the app comes to the foreground / on boot: resume any unfinished books. */
+    /**
+     * 开机 / 后台入口：拉起常驻服务，由服务的 onStartCommand 统一触发 refresh。
+     * 首页 Activity 不调用它，避免首屏加载时抢 IO。
+     */
     fun onAppStart() {
-        // 交给服务的 onStartCommand 统一 refresh，避免冷启动时重复扫描两次。
         ensureService()
     }
 

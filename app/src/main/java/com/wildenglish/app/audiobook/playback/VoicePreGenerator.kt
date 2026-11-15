@@ -13,24 +13,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/**
- * Non-empty sentence slots for a book, using the same chapter/index pairing and the same global
- * voice as [VoicePreGenerator] and playback, so readiness checks stay consistent.
- */
-internal fun voiceSlots(book: Audiobook): List<VoiceCache.Slot> {
-    val voice = AppSettings.voice()
-    val slots = ArrayList<VoiceCache.Slot>()
-    book.chapters.forEach { chapter ->
-        val sentences = loadChapterSentences(chapter)
-        sentences.forEachIndexed { index, raw ->
-            if (raw.trim().isNotEmpty()) {
-                slots.add(VoiceCache.Slot(chapter.index, index, voice.name))
-            }
-        }
-    }
-    return slots
-}
-
 /** Result of one pre-generation run. */
 data class PrepareResult(
     val total: Int,

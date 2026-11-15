@@ -24,9 +24,6 @@ object VoiceCache {
 
     private const val CACHE_VERSION = "3"
 
-    /** One sentence slot to verify: which voice it must have been generated with. */
-    data class Slot(val chapterIndex: Int, val sentenceIndex: Int, val voice: String)
-
     @Volatile
     private var app: Context? = null
 
@@ -57,20 +54,6 @@ object VoiceCache {
     fun isReady(book: Audiobook): Boolean {
         val marker = store()?.readMarker(book.id)?.trim() ?: return false
         return marker == markerText()
-    }
-
-    /**
-     * True when every non-empty sentence already has a cached file for the current voice. If so,
-     * writes the `.ready` marker so the next launch will not walk the book again.
-     */
-    fun confirmReady(book: Audiobook, slots: List<Slot>): Boolean {
-        if (isReady(book)) return true
-        val store = store() ?: return false
-        if (slots.any { !store.exists(book.id, it.chapterIndex, it.sentenceIndex, it.voice) }) {
-            return false
-        }
-        markReady(book)
-        return true
     }
 
     fun markReady(book: Audiobook) {
