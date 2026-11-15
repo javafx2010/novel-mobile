@@ -34,6 +34,10 @@ class AudiobookLibrary(context: Context) {
     private val libraryRoot = File(appContext.filesDir, "library")
     private val prefs = appContext.getSharedPreferences("audiobook_local", Context.MODE_PRIVATE)
 
+    /** 每本书的最近访问时间（bookId -> epochMillis），用于首页「最近访问优先」。 */
+    private val accessPrefs =
+        appContext.getSharedPreferences("audiobook_access", Context.MODE_PRIVATE)
+
     init {
         VoiceCache.init(appContext)
         restoreProgressFromSdcard()
@@ -73,12 +77,27 @@ class AudiobookLibrary(context: Context) {
             }
         }.toMap()
 
+    /** 记录一次访问（打开书），首页据此把最近打开的书排到最前。 */
+    fun touchAccess(id: String) {
+        accessPrefs.edit().putLong(id, System.currentTimeMillis()).apply()
+    }
+
+    private fun accessTime(id: String): Long =
+        runCatching { accessPrefs.getLong(id, 0L) }.getOrDefault(0L)
+
+    /** 最近访问时间降序；从未访问过的书按书名排在后面。 */
+    fun sortByRecentAccess(books: List<Audiobook>): List<Audiobook> =
+        books.sortedWith(
+            compareByDescending<Audiobook> { accessTime(it.id) }.thenBy { it.title }
+        )
+
     fun listBooks(): List<Audiobook> {
         if (!libraryRoot.isDirectory) return emptyList()
-        return libraryRoot.listFiles().orEmpty()
-            .filter { it.isDirectory }
-            .mapNotNull { ManifestParser.parse(it) }
-            .sortedBy { it.title }
+        return sortByRecentAccess(
+            libraryRoot.listFiles().orEmpty()
+                .filter { it.isDirectory }
+                .mapNotNull { ManifestParser.parse(it) }
+        )
     }
 
     suspend fun import(uri: Uri): ImportResult = withContext(Dispatchers.IO) {
@@ -180,6 +199,7 @@ class AudiobookLibrary(context: Context) {
             .filter { it.startsWith(positionKeyPrefix(id)) }
             .forEach { editor.remove(it) }
         editor.apply()
+        accessPrefs.edit().remove(id).apply()
         AppStorage.mirrorProgress(appContext, progressSnapshot())
     }
 

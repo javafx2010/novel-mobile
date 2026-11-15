@@ -189,6 +189,8 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun openBook(id: String) {
         val book = _state.value.books.firstOrNull { it.id == id } ?: return
+        // 打开书即记为一次访问：首页会按最近访问优先排序。
+        library.touchAccess(id)
         val (savedChapter, _) = library.progressOf(id)
         val chapter = savedChapter.coerceIn(0, (book.chapters.size - 1).coerceAtLeast(0))
         _state.update {
@@ -199,6 +201,8 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 // 上次听到第几句 —— 详情页据此显示「继续朗读」并从该句接着读。
                 savedChapterIndex = savedChapter.coerceAtLeast(0),
                 savedSentenceIndex = library.sentenceOf(id, chapter),
+                // 立即重排内存列表，返回首页时这本书已经在最前，无需重新读磁盘。
+                books = library.sortByRecentAccess(it.books),
                 sentences = emptyList(),
                 currentSentenceIndex = -1,
                 error = null,
