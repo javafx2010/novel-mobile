@@ -1,6 +1,6 @@
 package com.wildenglish.app.audiobook.ui
 
-import android.graphics.BitmapFactory
+import android.content.Context
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,10 +30,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.wildenglish.app.R
+import com.wildenglish.app.audiobook.data.CoverThumbCache
 import com.wildenglish.app.audiobook.data.MarketApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,27 +44,18 @@ import java.util.Locale
 
 private val coverCache = LruCache<String, ImageBitmap>(12)
 
-/** 封面最长边的解码上限（px）：书架格子约 500px、详情页 450px、播放页背景约 1080px，够用。 */
-private const val COVER_MAX_EDGE = 1280
-
 /**
- * 按显示尺寸采样解码封面，避免把上千像素的原图整张读进内存。
- * 全尺寸解码会产生十几 MB 的 Bitmap，触发大 GC 并让 UI 掉帧。
+ * 优先读磁盘缩略图（小图，直接 decode）；没有才从原图生成并落盘。
+ * 全程在 IO 线程，生成的 bitmap 最长边统一 1280px。
  */
-private suspend fun loadBitmap(key: String, file: File): ImageBitmap? = withContext(Dispatchers.IO) {
-    if (!file.isFile) return@withContext null
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(file.absolutePath, bounds)
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
-
-    var sample = 1
-    while (bounds.outWidth / sample > COVER_MAX_EDGE ||
-        bounds.outHeight / sample > COVER_MAX_EDGE
-    ) {
-        sample *= 2
-    }
-    val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-    val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return@withContext null
+private suspend fun loadBitmap(
+    context: Context,
+    key: String,
+    file: File,
+): ImageBitmap? = withContext(Dispatchers.IO) {
+    val bitmap = CoverThumbCache.read(context, key)
+        ?: CoverThumbCache.create(context, key, file)
+        ?: return@withContext null
     val image = bitmap.asImageBitmap()
     coverCache.put(key, image)
     image
@@ -71,6 +64,7 @@ private suspend fun loadBitmap(key: String, file: File): ImageBitmap? = withCont
 /** Loads (and caches) a cover bitmap from a local file. */
 @Composable
 fun rememberCover(file: File?): ImageBitmap? {
+    val context = LocalContext.current.applicationContext
     // lastModified() 是一次磁盘 stat，用 remember 缓存，避免每次重组都在主线程执行。
     val key = remember(file?.absolutePath) {
         file?.let { it.absolutePath + ":" + it.lastModified() }
@@ -82,7 +76,7 @@ fun rememberCover(file: File?): ImageBitmap? {
         value = if (file == null || key == null) {
             null
         } else {
-            coverCache.get(key) ?: loadBitmap(key, file)
+            coverCache.get(key) ?: loadBitmap(context, key, file)
         }
     }
     return image
@@ -94,10 +88,11 @@ private val remoteCoverCache = LruCache<String, ImageBitmap>(16)
 @Composable
 fun rememberRemoteCover(url: String?): ImageBitmap? {
     if (url.isNullOrBlank()) return null
+    val context = LocalContext.current.applicationContext
     var image by remember(url) { mutableStateOf(remoteCoverCache.get(url)) }
     LaunchedEffect(url) {
         if (image == null) {
-            val loaded = MarketApi.fetchBitmap(url)
+            val loaded = MarketApi.fetchBitmap(context, url)
             if (loaded != null) {
                 remoteCoverCache.put(url, loaded)
                 image = loaded
