@@ -3,6 +3,9 @@ package com.wildenglish.app.audiobook.data
 import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.File
@@ -77,26 +80,44 @@ class AudiobookLibrary(context: Context) {
             }
         }.toMap()
 
-    /** 记录一次访问（打开书），首页据此把最近打开的书排到最前。 */
-    fun touchAccess(id: String) {
-        accessPrefs.edit().putLong(id, System.currentTimeMillis()).apply()
+    /**
+     * 记录一次访问（打开书），key 用书籍**目录名**，这样渐进加载时无需先解析
+     * manifest 就能按最近访问排序。
+     */
+    fun touchAccess(dirName: String) {
+        accessPrefs.edit().putLong(dirName, System.currentTimeMillis()).apply()
     }
 
-    private fun accessTime(id: String): Long =
-        runCatching { accessPrefs.getLong(id, 0L) }.getOrDefault(0L)
+    private fun accessTime(dirName: String): Long =
+        runCatching { accessPrefs.getLong(dirName, 0L) }.getOrDefault(0L)
 
     /** 最近访问时间降序；从未访问过的书按书名排在后面。 */
     fun sortByRecentAccess(books: List<Audiobook>): List<Audiobook> =
         books.sortedWith(
-            compareByDescending<Audiobook> { accessTime(it.id) }.thenBy { it.title }
+            compareByDescending<Audiobook> { accessTime(it.dir.name) }.thenBy { it.title }
         )
+
+    /** 只列目录并按访问时间排序，不解析 manifest（渐进加载用，极快）。 */
+    private fun orderedBookDirs(): List<File> =
+        libraryRoot.listFiles().orEmpty()
+            .filter { it.isDirectory }
+            .sortedWith(compareByDescending<File> { accessTime(it.name) }.thenBy { it.name })
+
+    /**
+     * 逐部解析并 emit，供首页「加载完一部显示一部」使用。单个损坏目录会被跳过，
+     * 不会让整个书库加载失败或卡住。
+     */
+    fun booksFlow(): Flow<Audiobook> = flow {
+        for (dir in orderedBookDirs()) {
+            val book = runCatching { ManifestParser.parse(dir) }.getOrNull() ?: continue
+            emit(book)
+        }
+    }.flowOn(Dispatchers.IO)
 
     fun listBooks(): List<Audiobook> {
         if (!libraryRoot.isDirectory) return emptyList()
         return sortByRecentAccess(
-            libraryRoot.listFiles().orEmpty()
-                .filter { it.isDirectory }
-                .mapNotNull { ManifestParser.parse(it) }
+            orderedBookDirs().mapNotNull { runCatching { ManifestParser.parse(it) }.getOrNull() }
         )
     }
 
@@ -199,7 +220,7 @@ class AudiobookLibrary(context: Context) {
             .filter { it.startsWith(positionKeyPrefix(id)) }
             .forEach { editor.remove(it) }
         editor.apply()
-        accessPrefs.edit().remove(id).apply()
+        accessPrefs.edit().remove(safeId).apply()
         AppStorage.mirrorProgress(appContext, progressSnapshot())
     }
 

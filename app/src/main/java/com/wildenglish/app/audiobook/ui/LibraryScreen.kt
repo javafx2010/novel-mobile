@@ -3,7 +3,8 @@ package com.wildenglish.app.audiobook.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,13 +28,18 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -57,6 +63,9 @@ fun LibraryScreen(
     vm: AudioBookViewModel,
     onImport: () -> Unit,
 ) {
+    // 长按书封删除：确认框放在首页。
+    var bookToDelete by remember { mutableStateOf<Audiobook?>(null) }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -137,10 +146,28 @@ fun LibraryScreen(
                         book = book,
                         index = index,
                         onClick = { vm.openBook(book.id) },
+                        onLongClick = { bookToDelete = book },
                     )
                 }
             }
         }
+    }
+
+    bookToDelete?.let { book ->
+        AlertDialog(
+            onDismissRequest = { bookToDelete = null },
+            title = { Text("删除《${book.title}》？") },
+            text = { Text("将从本地移除该书及其封面、文稿与离线配音。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    bookToDelete = null
+                    vm.deleteBook(book.id)
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { bookToDelete = null }) { Text("取消") }
+            },
+        )
     }
 }
 
@@ -181,11 +208,13 @@ private fun EmptyLibrary(error: String?, onImport: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BookTile(
     book: Audiobook,
     index: Int,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     val alpha = remember(book.id) { Animatable(0f) }
     val translation = remember(book.id) { Animatable(28f) }
@@ -200,7 +229,10 @@ private fun BookTile(
                 this.alpha = alpha.value
                 translationY = translation.value
             }
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
     ) {
         BookCover(
             coverFile = book.coverFile,

@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDateTime
@@ -134,11 +136,28 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     // ---- Library ----
 
+    private var reloadJob: Job? = null
+
+    /** 渐进加载：解析完一部就显示一部，不再等整库扫描完成才刷新。 */
     fun reload() {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
-            val books = withContext(Dispatchers.IO) { library.listBooks() }
-            _state.update { it.copy(isLoading = false, books = books) }
+        reloadJob?.cancel()
+        reloadJob = viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, books = emptyList(), error = null) }
+            val loaded = ArrayList<Audiobook>()
+            try {
+                library.booksFlow().collect { book ->
+                    loaded.add(book)
+                    // 第一部到达即收起转圈，后续每部继续追加显示。
+                    _state.update { it.copy(isLoading = false, books = loaded.toList()) }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message ?: "书库加载失败") }
+            } finally {
+                // 无论成功/失败/取消，都确保 loading 不会卡住。
+                _state.update { it.copy(isLoading = false) }
+            }
         }
     }
 
@@ -146,26 +165,49 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch { importUri(uri) }
     }
 
-    /** Shared by the file picker and the market download: import, refresh, open and pre-dub. */
-    private suspend fun importUri(uri: Uri, navigate: Boolean = true): ImportResult {
-        _state.update { it.copy(isImporting = true, error = null) }
-        val result = library.import(uri)
-        when (result) {
-            is ImportResult.Success -> {
-                val books = withContext(Dispatchers.IO) { library.listBooks() }
-                _state.update { it.copy(isImporting = false, books = books) }
-                if (navigate) openBook(result.book.id)
-                // Re-import replaced the whole book dir (including tts/): drop
-                // any in-flight preparation holding the old book and re-queue.
-                VoicePrepCenter.cancel(result.book.id)
-                VoicePrepCenter.enqueue(result.book.id)
-            }
+    /** 多次快速导入串行执行，避免并发写同一本书目录 / 状态互相覆盖导致卡住。 */
+    private val importMutex = Mutex()
 
-            is ImportResult.Failure ->
-                _state.update { it.copy(isImporting = false, error = result.message) }
+    /** Shared by the file picker and the market download: import, refresh, open and pre-dub. */
+    private suspend fun importUri(uri: Uri, navigate: Boolean = true): ImportResult =
+        importMutex.withLock {
+            _state.update { it.copy(isImporting = true, error = null) }
+            try {
+                val result = library.import(uri)
+                when (result) {
+                    is ImportResult.Success -> {
+                        val books = withContext(Dispatchers.IO) { library.listBooks() }
+                        _state.update {
+                            it.copy(isImporting = false, isLoading = false, books = books)
+                        }
+                        if (navigate) openBook(result.book.id)
+                        // Re-import replaced the whole book dir (including tts/): drop
+                        // any in-flight preparation holding the old book and re-queue.
+                        VoicePrepCenter.cancel(result.book.id)
+                        VoicePrepCenter.enqueue(result.book.id)
+                    }
+
+                    is ImportResult.Failure ->
+                        _state.update {
+                            it.copy(isImporting = false, isLoading = false, error = result.message)
+                        }
+                }
+                result
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                _state.update { it.copy(isImporting = false, isLoading = false) }
+                throw e
+            } catch (e: Exception) {
+                // 任何意外都不能让转圈一直挂着。
+                _state.update {
+                    it.copy(
+                        isImporting = false,
+                        isLoading = false,
+                        error = e.message ?: "导入失败",
+                    )
+                }
+                ImportResult.Failure(e.message ?: "导入失败")
+            }
         }
-        return result
-    }
 
     fun deleteBook(id: String) {
         viewModelScope.launch {
@@ -189,8 +231,8 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun openBook(id: String) {
         val book = _state.value.books.firstOrNull { it.id == id } ?: return
-        // 打开书即记为一次访问：首页会按最近访问优先排序。
-        library.touchAccess(id)
+        // 打开书即记为一次访问：首页会按最近访问优先排序（key 用目录名）。
+        library.touchAccess(book.dir.name)
         val (savedChapter, _) = library.progressOf(id)
         val chapter = savedChapter.coerceIn(0, (book.chapters.size - 1).coerceAtLeast(0))
         _state.update {

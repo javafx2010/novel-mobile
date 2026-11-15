@@ -17,19 +17,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -60,8 +53,6 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
         return
     }
 
-    var showDelete by remember { mutableStateOf(false) }
-
     Column(
         Modifier
             .fillMaxSize()
@@ -78,13 +69,6 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                     contentDescription = "返回",
-                )
-            }
-            Spacer(Modifier.weight(1f))
-            GlassIconButton(onClick = { showDelete = true }, dark = dark) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = "删除本书",
                 )
             }
         }
@@ -187,23 +171,6 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 }
             }
         }
-    }
-
-    if (showDelete) {
-        AlertDialog(
-            onDismissRequest = { showDelete = false },
-            title = { Text("删除《${book.title}》？") },
-            text = { Text("将从本地移除该有声书及其封面与文稿。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDelete = false
-                    vm.deleteBook(book.id)
-                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDelete = false }) { Text("取消") }
-            },
-        )
     }
 }
 
