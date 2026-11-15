@@ -20,5 +20,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Wild English"
+rootProject.name = "novel-mobile"
 include(":app")

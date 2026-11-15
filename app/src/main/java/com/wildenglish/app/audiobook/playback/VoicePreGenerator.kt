@@ -7,9 +7,11 @@ import com.wildenglish.app.audiobook.data.VoiceConfig
 import com.wildenglish.app.audiobook.data.loadChapterSentences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * Non-empty sentence slots for a book, using the same chapter/index pairing and the same global
@@ -110,22 +112,28 @@ class VoicePreGenerator {
                 } catch (e: Exception) {
                     null
                 }
-                // A re-import may have replaced the book dir while the request was in flight;
-                // never write stale audio into the fresh book.
-                currentCoroutineContext().ensureActive()
+                // 一句合成完立刻落盘（不等整本完成），并使用 NonCancellable：切换书籍 /
+                // 用户暂停导致的中断不会丢掉刚合成好的这一句。仅在书本目录被重新导入替换
+                // 时拒绝写入，避免把旧书的音频写进新书。
                 if (bytes == null || bytes.isEmpty()) {
                     failed++
                     consecutiveFailures++
                 } else {
-                    // A failed write means the configured directory is unusable: count it as a
-                    // failure (the cache already published the error for the UI).
-                    val stored = VoiceCache.put(
-                        book.id,
-                        job.chapterIndex,
-                        job.sentenceIndex,
-                        job.voice.name,
-                        bytes,
-                    )
+                    val stored = withContext(NonCancellable) {
+                        if (File(book.dir, "manifest.json").isFile) {
+                            // A failed write means the configured directory is unusable: count it
+                            // as a failure (the cache already published the error for the UI).
+                            VoiceCache.put(
+                                book.id,
+                                job.chapterIndex,
+                                job.sentenceIndex,
+                                job.voice.name,
+                                bytes,
+                            )
+                        } else {
+                            false
+                        }
+                    }
                     if (stored) {
                         synthesized++
                         consecutiveFailures = 0

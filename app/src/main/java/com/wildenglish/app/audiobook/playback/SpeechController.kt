@@ -16,10 +16,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -274,19 +276,22 @@ class SpeechController(
         val text = sentences.getOrNull(index)?.trim().orEmpty()
         if (text.isEmpty()) return ByteArray(0)
         VoiceCache.get(id, chapterIndex, index, voice.name)?.let { return it }
-        return try {
+        val bytes = try {
             // Live cache-miss: insert at the FRONT of the global synthesis queue
             // so it never waits behind the background dubbing backlog.
-            val bytes = VoiceSynth.synthesize(text, voice.name, voice.lang, priority = true)
-            // A failed write is reported by the cache itself; playback still continues from
-            // the in-memory bytes instead of stopping.
-            VoiceCache.put(id, chapterIndex, index, voice.name, bytes)
-            bytes
+            VoiceSynth.synthesize(text, voice.name, voice.lang, priority = true)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            null
+            return null
         }
+        // 合成一句就立刻落盘：即使这一句还没播完用户就暂停/跳转（本协程被取消），
+        // 音频也已经写进配音目录，下次朗读直接命中，不必重新联网合成。
+        // 写入失败由 VoiceCache 自己发错误提示，播放继续使用内存里的数据。
+        withContext(NonCancellable) {
+            VoiceCache.put(id, chapterIndex, index, voice.name, bytes)
+        }
+        return bytes
     }
 
     private fun finalizeSynthesis(gen: Int, run: CoroutineScope, index: Int, audio: ByteArray) {
