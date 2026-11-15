@@ -28,6 +28,10 @@ data class AppSettingsState(
     val customTreeUri: String? = null,
     /** 播放页是否展示「当前朗读句」卡片。 */
     val showSentence: Boolean = true,
+    /** 每日阅读目标（分钟）。 */
+    val dailyGoalMinutes: Int = 30,
+    /** 一年读书计划：今年计划读完的本数。 */
+    val yearPlanBooks: Int = 24,
 )
 
 /**
@@ -43,6 +47,8 @@ object AppSettings {
     private const val KEY_STORAGE_MODE = "storage_mode"
     private const val KEY_TREE_URI = "storage_tree_uri"
     private const val KEY_SHOW_SENTENCE = "show_sentence"
+    private const val KEY_DAILY_GOAL = "daily_goal_minutes"
+    private const val KEY_YEAR_PLAN = "year_plan_books"
 
     private var prefs: SharedPreferences? = null
 
@@ -59,6 +65,9 @@ object AppSettings {
             }.getOrDefault(VoiceStorageMode.AUTO),
             customTreeUri = p.getString(KEY_TREE_URI, null),
             showSentence = p.getBoolean(KEY_SHOW_SENTENCE, true),
+            dailyGoalMinutes = p.getInt(KEY_DAILY_GOAL, 30)
+                .coerceIn(MIN_DAILY_GOAL, MAX_DAILY_GOAL),
+            yearPlanBooks = p.getInt(KEY_YEAR_PLAN, 24).coerceIn(MIN_YEAR_PLAN, MAX_YEAR_PLAN),
         )
     }
 
@@ -90,4 +99,25 @@ object AppSettings {
         _state.value = _state.value.copy(showSentence = show)
         prefs?.edit()?.putBoolean(KEY_SHOW_SENTENCE, show)?.apply()
     }
+
+    /** 每日阅读目标（分钟），5–240，步长 5。 */
+    fun setDailyGoalMinutes(minutes: Int) {
+        val value = minutes.coerceIn(MIN_DAILY_GOAL, MAX_DAILY_GOAL)
+        if (value == _state.value.dailyGoalMinutes) return
+        _state.value = _state.value.copy(dailyGoalMinutes = value)
+        prefs?.edit()?.putInt(KEY_DAILY_GOAL, value)?.apply()
+    }
+
+    /** 一年读书计划：今年读完本数目标。 */
+    fun setYearPlanBooks(books: Int) {
+        val value = books.coerceIn(MIN_YEAR_PLAN, MAX_YEAR_PLAN)
+        if (value == _state.value.yearPlanBooks) return
+        _state.value = _state.value.copy(yearPlanBooks = value)
+        prefs?.edit()?.putInt(KEY_YEAR_PLAN, value)?.apply()
+    }
+
+    private const val MIN_DAILY_GOAL = 5
+    private const val MAX_DAILY_GOAL = 240
+    private const val MIN_YEAR_PLAN = 1
+    private const val MAX_YEAR_PLAN = 200
 }

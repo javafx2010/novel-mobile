@@ -125,6 +125,7 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
                         Screen.READER -> ReaderScreen(state, vm)
                         Screen.MARKET -> MarketScreen(state, vm)
                         Screen.SETTINGS -> SettingsScreen(state, vm)
+                        Screen.STATS -> StatsScreen(state, vm)
                     }
                 }
             }

@@ -18,15 +18,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,7 +49,9 @@ import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
 import com.wildenglish.app.audiobook.VoicePrepProgress
 import com.wildenglish.app.audiobook.data.Audiobook
+import com.wildenglish.app.ui.theme.GlassCardShape
 import com.wildenglish.app.ui.theme.GlassIconButton
+import com.wildenglish.app.ui.theme.GlassPanel
 import com.wildenglish.app.ui.theme.GlassPrimaryButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -82,6 +88,10 @@ fun LibraryScreen(
                 )
             }
             val dark = isSystemInDarkTheme()
+            GlassIconButton(onClick = vm::openStats, dark = dark) {
+                Icon(Icons.Filled.BarChart, contentDescription = "阅读统计")
+            }
+            androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
             GlassIconButton(onClick = vm::openSettings, dark = dark) {
                 Icon(Icons.Filled.Settings, contentDescription = "设置")
             }
@@ -99,6 +109,15 @@ fun LibraryScreen(
                     Icon(Icons.Filled.Add, contentDescription = "导入")
                 }
             }
+        }
+
+        state.lastBook?.let { book ->
+            ContinueCard(
+                book = book,
+                chapterIndex = state.lastBookChapterIndex,
+                onClick = { vm.openBook(book.id) },
+                onPlay = { vm.resumeBook(book.id) },
+            )
         }
 
         when {
@@ -132,6 +151,74 @@ fun LibraryScreen(
                         onClick = { vm.openBook(book.id) },
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContinueCard(
+    book: Audiobook,
+    chapterIndex: Int,
+    onClick: () -> Unit,
+    onPlay: () -> Unit,
+) {
+    val dark = isSystemInDarkTheme()
+    val chapterTitle = book.chapters.getOrNull(chapterIndex)?.title ?: "第 ${chapterIndex + 1} 章"
+    GlassPanel(
+        shape = GlassCardShape,
+        dark = dark,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp)
+            .clickable(onClick = onClick),
+        elevation = 10.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BookCover(
+                coverFile = book.coverFile,
+                title = book.title,
+                modifier = Modifier
+                    .width(52.dp)
+                    .aspectRatio(0.72f),
+            )
+            Column(
+                Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            ) {
+                Text(
+                    "继续收听",
+                    fontSize = 11.sp,
+                    letterSpacing = 1.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    book.title,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    chapterTitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = onPlay) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = "继续播放",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }

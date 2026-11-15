@@ -13,6 +13,7 @@ import com.wildenglish.app.audiobook.data.ImportResult
 import com.wildenglish.app.audiobook.data.MarketApi
 import com.wildenglish.app.audiobook.data.MarketItem
 import com.wildenglish.app.audiobook.data.MarketSyncStore
+import com.wildenglish.app.audiobook.data.ReadingStats
 import com.wildenglish.app.audiobook.data.VoiceCache
 import com.wildenglish.app.audiobook.data.VoiceStorage
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
@@ -54,6 +55,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         AppSettings.init(application)
+        ReadingStats.init(application)
         // 音色与配音目录属于全局设置，改完界面立即反映（并用于“设置”页展示）。
         viewModelScope.launch {
             AppSettings.state.collect { settings ->
@@ -65,9 +67,15 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                         customTreeUri = settings.customTreeUri,
                         storagePath = path,
                         showSentence = settings.showSentence,
+                        dailyGoalMinutes = settings.dailyGoalMinutes,
+                        yearPlanBooks = settings.yearPlanBooks,
                     )
                 }
             }
+        }
+        // 收听时长 / 连续天数 / 读完本数。
+        viewModelScope.launch {
+            ReadingStats.state.collect { stats -> _state.update { it.copy(stats = stats) } }
         }
         // 配音文件写入失败（SD 卡不可写等）直接提示用户。
         viewModelScope.launch {
@@ -99,6 +107,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                         isBuffering = snap.isBuffering,
                         ttsReady = snap.ttsReady,
                         speed = snap.speed,
+                        lastBookId = snap.book?.id ?: ui.lastBookId,
                         error = if (snap.error != null || snap.book != null) snap.error else ui.error,
                     )
                 }
@@ -115,7 +124,17 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val books = withContext(Dispatchers.IO) { library.listBooks() }
-            _state.update { it.copy(isLoading = false, books = books) }
+            val lastId = withContext(Dispatchers.IO) { library.lastBookId() }
+            val lastChapter = lastId?.let { library.progressOf(it).first } ?: 0
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    books = books,
+                    // 最近收听的书被删除后不再展示「继续收听」。
+                    lastBookId = lastId?.takeIf { id -> books.any { b -> b.id == id } },
+                    lastBookChapterIndex = lastChapter,
+                )
+            }
         }
     }
 
@@ -470,6 +489,21 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         if (_state.value.hasActivePlayer) _state.update { it.copy(screen = Screen.PLAYER) }
     }
 
+    // ---- 阅读统计 / 目标 / 成就 ----
+
+    fun openStats() = _state.update { it.copy(screen = Screen.STATS, error = null) }
+
+    /** 首页「继续收听」：打开这本书并从上次的章节/位置接着朗读。 */
+    fun resumeBook(id: String) {
+        if (_state.value.books.none { it.id == id }) return
+        openBook(id)
+        playSaved()
+    }
+
+    fun setDailyGoalMinutes(minutes: Int) = AppSettings.setDailyGoalMinutes(minutes)
+
+    fun setYearPlanBooks(books: Int) = AppSettings.setYearPlanBooks(books)
+
     // ---- Playback controls ----
 
     fun togglePlayPause() = PlaybackCenter.togglePlayPause()
@@ -539,6 +573,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             Screen.DETAIL -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.MARKET -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.SETTINGS -> _state.update { it.copy(screen = Screen.LIBRARY) }
+            Screen.STATS -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.LIBRARY -> Unit
         }
     }

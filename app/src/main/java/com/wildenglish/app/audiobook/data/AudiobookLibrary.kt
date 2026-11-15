@@ -201,13 +201,21 @@ class AudiobookLibrary(context: Context) {
         prefs.edit()
             .putString(progressKey(id), "$chapterIndex|$positionMs")
             .putLong(positionKey(id, chapterIndex), positionMs)
+            .putString(KEY_LAST_BOOK, id)
             .apply()
         AppStorage.mirrorProgress(appContext, progressSnapshot())
     }
 
+    /** 最近一次收听的书（首页「继续收听」用），没有则返回 null。 */
+    fun lastBookId(): String? = prefs.getString(KEY_LAST_BOOK, null)
+
     private fun progressKey(id: String) = "progress_$id"
     private fun positionKeyPrefix(id: String) = "pos_${id}_"
     private fun positionKey(id: String, chapterIndex: Int) = "${positionKeyPrefix(id)}$chapterIndex"
+
+    private companion object {
+        const val KEY_LAST_BOOK = "last_book"
+    }
 
     private fun sanitizeId(raw: String): String {
         val cleaned = raw.replace(Regex("[^A-Za-z0-9._-]"), "_").trim('.', '_')
