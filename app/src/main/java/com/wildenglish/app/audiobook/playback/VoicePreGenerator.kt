@@ -77,71 +77,68 @@ class VoicePreGenerator {
         }
 
         val total = jobs.size
-        var synthesized = 0
-        var skipped = 0
-        var failed = 0
-        var storageFailed = false
-        var done = 0
-        var consecutiveFailures = 0
-
-        // Already fully cached (e.g. .ready was lost): reuse files, do not re-synthesize.
-        val already = jobs.count {
+        // 先算出已有音频（旧命名的文件由 VoiceStore 就地改名后也算命中），进度直接从已完成
+        // 的位置开始，不再每次都显示从 0 重配。
+        val missing = jobs.filterNot {
             VoiceCache.hasFile(book.id, it.chapterIndex, it.sentenceIndex, it.voice.name)
         }
-        if (already == total) {
+        val skipped = total - missing.size
+        if (missing.isEmpty()) {
             onProgress(total, total)
             VoiceCache.markReady(book)
-            return@withContext PrepareResult(total, 0, total, 0)
+            return@withContext PrepareResult(total, 0, skipped, 0)
         }
+        onProgress(skipped, total)
 
-        for (job in jobs) {
+        var synthesized = 0
+        var failed = 0
+        var storageFailed = false
+        var done = skipped
+        var consecutiveFailures = 0
+
+        for (job in missing) {
             currentCoroutineContext().ensureActive()
-            if (VoiceCache.hasFile(book.id, job.chapterIndex, job.sentenceIndex, job.voice.name)) {
-                skipped++
-                consecutiveFailures = 0
+            val bytes = try {
+                VoiceSynth.synthesize(
+                    job.text,
+                    job.voice.name,
+                    job.voice.lang,
+                    priority = false,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            // 一句合成完立刻落盘（不等整本完成），并使用 NonCancellable：切换书籍 /
+            // 用户暂停导致的中断不会丢掉刚合成好的这一句。仅在书本目录被重新导入替换
+            // 时拒绝写入，避免把旧书的音频写进新书。
+            if (bytes == null || bytes.isEmpty()) {
+                failed++
+                consecutiveFailures++
             } else {
-                val bytes = try {
-                    VoiceSynth.synthesize(
-                        job.text,
-                        job.voice.name,
-                        job.voice.lang,
-                        priority = false,
-                    )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    null
-                }
-                // 一句合成完立刻落盘（不等整本完成），并使用 NonCancellable：切换书籍 /
-                // 用户暂停导致的中断不会丢掉刚合成好的这一句。仅在书本目录被重新导入替换
-                // 时拒绝写入，避免把旧书的音频写进新书。
-                if (bytes == null || bytes.isEmpty()) {
-                    failed++
-                    consecutiveFailures++
-                } else {
-                    val stored = withContext(NonCancellable) {
-                        if (File(book.dir, "manifest.json").isFile) {
-                            // A failed write means the configured directory is unusable: count it
-                            // as a failure (the cache already published the error for the UI).
-                            VoiceCache.put(
-                                book.id,
-                                job.chapterIndex,
-                                job.sentenceIndex,
-                                job.voice.name,
-                                bytes,
-                            )
-                        } else {
-                            false
-                        }
-                    }
-                    if (stored) {
-                        synthesized++
-                        consecutiveFailures = 0
+                val stored = withContext(NonCancellable) {
+                    if (File(book.dir, "manifest.json").isFile) {
+                        // A failed write means the configured directory is unusable: count it
+                        // as a failure (the cache already published the error for the UI).
+                        VoiceCache.put(
+                            book.id,
+                            job.chapterIndex,
+                            job.sentenceIndex,
+                            job.voice.name,
+                            bytes,
+                        )
                     } else {
-                        failed++
-                        storageFailed = true
-                        consecutiveFailures++
+                        false
                     }
+                }
+                if (stored) {
+                    synthesized++
+                    consecutiveFailures = 0
+                } else {
+                    failed++
+                    storageFailed = true
+                    consecutiveFailures++
                 }
             }
             done++

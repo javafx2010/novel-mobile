@@ -39,6 +39,13 @@ data class VoiceConfig(
 
         val DEFAULT: VoiceConfig = OPTIONS.first { it.name == DEFAULT_NAME }
 
+        /**
+         * 旧版本（单音色时代）用这两个音色合成过 `<句号>.mp3`（文件名里没有音色）。
+         * 现在文件名带音色后缀，遇到这两个音色的旧文件时按旧名回退读取并就地改名。
+         */
+        fun isLegacyVoice(name: String): Boolean =
+            name == DEFAULT_NAME || name == "zh-CN-XiaoxiaoNeural"
+
         /** Looks a voice up by name, falling back to the default for unknown/blank input. */
         fun byName(name: String?): VoiceConfig =
             OPTIONS.firstOrNull { it.name == name } ?: DEFAULT

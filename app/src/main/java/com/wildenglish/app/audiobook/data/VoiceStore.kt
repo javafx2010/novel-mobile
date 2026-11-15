@@ -61,21 +61,44 @@ class FileVoiceStore(private val root: File) : VoiceStore {
     private fun audioFile(bookId: String, chapterIndex: Int, sentenceIndex: Int, voice: String) =
         File(chapterDir(bookId, chapterIndex), audioFileName(sentenceIndex, voice))
 
-    override fun exists(bookId: String, chapterIndex: Int, sentenceIndex: Int, voice: String): Boolean =
-        runCatching {
-            val file = audioFile(bookId, chapterIndex, sentenceIndex, voice)
-            file.isFile && file.length() > 0
-        }.getOrDefault(false)
+    /** 旧版单音色时代的文件名（没有音色后缀），只在 [VoiceConfig.isLegacyVoice] 时使用。 */
+    private fun legacyFile(bookId: String, chapterIndex: Int, sentenceIndex: Int) =
+        File(chapterDir(bookId, chapterIndex), "$sentenceIndex.mp3")
+
+    private fun usable(file: File): Boolean =
+        runCatching { file.isFile && file.length() > 0 }.getOrDefault(false)
+
+    override fun exists(
+        bookId: String,
+        chapterIndex: Int,
+        sentenceIndex: Int,
+        voice: String
+    ): Boolean {
+        val file = audioFile(bookId, chapterIndex, sentenceIndex, voice)
+        if (usable(file)) return true
+        if (!VoiceConfig.isLegacyVoice(voice)) return false
+        // 旧命名没有音色后缀：就地改名成新命名，避免每次启动都当成"未配音"重做。
+        val legacy = legacyFile(bookId, chapterIndex, sentenceIndex)
+        if (!usable(legacy)) return false
+        runCatching { legacy.renameTo(file) }
+        return true
+    }
 
     override fun read(
         bookId: String,
         chapterIndex: Int,
         sentenceIndex: Int,
         voice: String,
-    ): ByteArray? = runCatching {
+    ): ByteArray? {
         val file = audioFile(bookId, chapterIndex, sentenceIndex, voice)
-        if (file.isFile && file.length() > 0) file.readBytes() else null
-    }.getOrNull()
+        runCatching { if (usable(file)) file.readBytes() else null }.getOrNull()?.let { return it }
+        if (!VoiceConfig.isLegacyVoice(voice)) return null
+        val legacy = legacyFile(bookId, chapterIndex, sentenceIndex)
+        val bytes = runCatching { if (usable(legacy)) legacy.readBytes() else null }.getOrNull()
+            ?: return null
+        runCatching { legacy.renameTo(file) }
+        return bytes
+    }
 
     override fun write(
         bookId: String,
@@ -98,7 +121,12 @@ class FileVoiceStore(private val root: File) : VoiceStore {
                     if (!target.isFile || target.length() <= 0) tmp.copyTo(target, overwrite = true)
                     tmp.delete()
                 }
-                target.isFile && target.length() > 0
+                val stored = target.isFile && target.length() > 0
+                if (stored && VoiceConfig.isLegacyVoice(voice)) {
+                    // 新文件已就位，删掉旧命名的重复文件。
+                    runCatching { legacyFile(bookId, chapterIndex, sentenceIndex).delete() }
+                }
+                stored
             }
         }
     } catch (e: Exception) {
@@ -208,7 +236,10 @@ class SafVoiceStore(context: Context, treeUri: Uri) : VoiceStore {
         create: Boolean,
     ): DocumentFile? {
         val files = files(bookId, chapterIndex, create) ?: return null
-        return synchronized(files) { files[audioFileName(sentenceIndex, voice)] }
+        return synchronized(files) {
+            files[audioFileName(sentenceIndex, voice)]
+                ?: if (VoiceConfig.isLegacyVoice(voice)) files["$sentenceIndex.mp3"] else null
+        }
     }
 
     override fun exists(bookId: String, chapterIndex: Int, sentenceIndex: Int, voice: String): Boolean {
@@ -251,6 +282,12 @@ class SafVoiceStore(context: Context, treeUri: Uri) : VoiceStore {
             return false
         }
         synchronized(files) { files[name] = doc }
+        if (VoiceConfig.isLegacyVoice(voice)) {
+            // 删掉旧命名的重复文件（新文件已写入）。
+            val legacyName = "$sentenceIndex.mp3"
+            val legacy = synchronized(files) { files.remove(legacyName) }
+            runCatching { legacy?.delete() }
+        }
         return true
     }
 
