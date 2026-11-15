@@ -5,10 +5,13 @@ import com.wildenglish.app.audiobook.data.Chapter
 import com.wildenglish.app.audiobook.data.MarketCategory
 import com.wildenglish.app.audiobook.data.MarketItem
 import com.wildenglish.app.audiobook.data.ReadingStatsSnapshot
+import com.wildenglish.app.audiobook.data.RssArticle
+import com.wildenglish.app.audiobook.data.RssFeed
 import com.wildenglish.app.audiobook.data.VoiceConfig
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
+import com.wildenglish.app.audiobook.playback.RssPlayerCenter
 
-enum class Screen { LIBRARY, DETAIL, PLAYER, READER, MARKET, SETTINGS, STATS }
+enum class Screen { LIBRARY, DETAIL, PLAYER, READER, MARKET, SETTINGS, STATS, RSS, RSS_PLAYER }
 
 /** Progress of pre-synthesizing a book's whole voice track into local cache. */
 data class VoicePrepProgress(
@@ -74,6 +77,14 @@ data class AudioBookUiState(
     /** 上次中断的章节 / 句子（详情页「继续朗读」用）。 */
     val savedChapterIndex: Int = 0,
     val savedSentenceIndex: Int = 0,
+    /** 已订阅的 RSS 源 id。 */
+    val rssSubscriptions: List<String> = emptyList(),
+    /** 正在查看文章列表的订阅源；null = 显示订阅总览。 */
+    val rssFeed: RssFeed? = null,
+    val rssArticles: List<RssArticle> = emptyList(),
+    val rssLoading: Boolean = false,
+    /** 订阅文章播放器（与图书播放完全独立）。 */
+    val rssPlayer: RssPlayerCenter.Status = RssPlayerCenter.Status(),
 ) {
     val currentBook: Audiobook? get() = books.firstOrNull { it.id == currentBookId }
     val currentChapter: Chapter? get() = currentBook?.chapters?.getOrNull(chapterIndex)
