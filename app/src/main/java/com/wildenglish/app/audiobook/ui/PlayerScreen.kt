@@ -8,9 +8,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,7 +36,6 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -157,41 +159,42 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                         Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "收起")
                     }
                     Spacer(Modifier.weight(1f))
+                    // 悬浮条只保留副标题（章名）。
                     Text(
-                        "正在朗读",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.82f)
+                        chapter.title,
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.86f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(Modifier.weight(1f))
                     Spacer(Modifier.size(40.dp))
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
-            Text(
-                book.title,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                chapter.title,
-                fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
-            )
             Spacer(Modifier.height(12.dp))
 
-            // 当前句：只显示两行，高度固定，不再占满整页（可在设置里关闭展示）。
+            // 封面占中间区域：按可用空间等比缩放，不会被裁切也不会溢出。
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                val coverWidth = minOf(maxWidth, maxHeight * 0.72f)
+                BookCover(
+                    coverFile = book.coverFile,
+                    title = book.title,
+                    modifier = Modifier
+                        .width(coverWidth)
+                        .aspectRatio(0.72f),
+                )
+            }
+
+            // 封面与下方文字之间留出空隙，避免贴在一起。
+            Spacer(Modifier.height(18.dp))
+
+            // 当前句放在下方：只显示两行，高度固定（可在设置里关闭展示）。
             if (state.showSentence) {
                 GlassPanel(
                     shape = GlassBarShape,
@@ -230,10 +233,9 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                         }
                     }
                 }
+                Spacer(Modifier.height(10.dp))
             }
 
-            // 把进度条与播放控件推到页面底部。
-            Spacer(Modifier.weight(1f))
             Slider(
                 value = sliderValue,
                 onValueChange = {
