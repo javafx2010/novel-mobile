@@ -30,9 +30,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.data.MarketApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -109,11 +110,12 @@ fun BookCover(
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Text(
-                text = title.firstOrNull()?.toString() ?: "书",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
+            // 没有封面：用默认书封（ComfyUI 生成的通用封面）占位，不再显示首字。
+            Image(
+                painter = painterResource(R.drawable.cover_default),
+                contentDescription = title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }
