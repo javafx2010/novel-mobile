@@ -71,6 +71,9 @@ data class AudioBookUiState(
     val yearPlanBooks: Int = 24,
     /** 收听时长 / 连续天数 / 读完书统计。 */
     val stats: ReadingStatsSnapshot = ReadingStatsSnapshot(),
+    /** 上次中断的章节 / 句子（详情页「继续朗读」用）。 */
+    val savedChapterIndex: Int = 0,
+    val savedSentenceIndex: Int = 0,
 ) {
     val currentBook: Audiobook? get() = books.firstOrNull { it.id == currentBookId }
     val currentChapter: Chapter? get() = currentBook?.chapters?.getOrNull(chapterIndex)

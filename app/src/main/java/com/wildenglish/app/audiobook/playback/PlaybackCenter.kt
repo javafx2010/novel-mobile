@@ -51,6 +51,10 @@ object PlaybackCenter {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var loadJob: Job? = null
 
+    /** 朗读器里是否已装载当前会话（冷启动恢复的会话只是快照，尚未装载）。 */
+    @Volatile
+    private var speechLoaded = false
+
     private val _snapshot = MutableStateFlow(PlaybackSnapshot())
     val snapshot: StateFlow<PlaybackSnapshot> = _snapshot.asStateFlow()
 
@@ -113,6 +117,8 @@ object PlaybackCenter {
             }
         }
         PlaybackSession.init(application)
+        // 冷启动恢复上次的收听位置（只装载不自动播放）。
+        restoreLastSession()
         PlaybackSession.setListener(object : PlaybackSession.Listener {
             override fun onPlay() {
                 if (!_snapshot.value.isPlaying && _snapshot.value.hasPlayer) resume()
@@ -126,6 +132,40 @@ object PlaybackCenter {
 
             override fun onNext() = skipSentences(1)
         })
+    }
+
+    /**
+     * 冷启动恢复上次的收听位置：把书 / 章节 / 句子装载到快照，但不自动播放。
+     * 于是首页迷你播放器、播放页都停在昨天听到的地方，点一下播放即接着读。
+     */
+    fun restoreLastSession() {
+        if (_snapshot.value.hasPlayer) return
+        val ctx = app ?: return
+        val lib = library ?: return
+        scope.launch {
+            val bookId = withContext(Dispatchers.IO) { lib.lastBookId() } ?: return@launch
+            val books = withContext(Dispatchers.IO) { AudiobookLibrary(ctx).listBooks() }
+            val book = books.firstOrNull { it.id == bookId } ?: return@launch
+            if (book.chapters.isEmpty()) return@launch
+            val chapterIndex = lib.progressOf(bookId).first.coerceIn(0, book.chapters.lastIndex)
+            val chapter = book.chapters[chapterIndex]
+            val sentences = withContext(Dispatchers.IO) { loadChapterSentences(chapter) }
+            if (sentences.isEmpty()) return@launch
+            val position = lib.sentenceOf(bookId, chapterIndex).coerceIn(0, sentences.lastIndex)
+            // 恢复期间用户可能已经开始听别的书：不要覆盖正在播放的会话。
+            if (_snapshot.value.hasPlayer) return@launch
+            speechLoaded = false
+            _snapshot.update {
+                it.copy(
+                    book = book,
+                    chapterIndex = chapterIndex,
+                    sentences = sentences,
+                    currentSentenceIndex = position,
+                    isPlaying = false,
+                    isBuffering = false,
+                )
+            }
+        }
     }
 
     fun startChapter(book: Audiobook, index: Int, startSentence: Int = -1) {
@@ -164,12 +204,21 @@ object PlaybackCenter {
                 )
             }
             speech.speak(sentences, start, _snapshot.value.speed, book, chapter.index)
+            speechLoaded = true
             ensureService()
             publish()
         }
     }
 
     fun togglePlayPause() {
+        val s = _snapshot.value
+        if (!s.hasPlayer) return
+        if (!speechLoaded) {
+            // 恢复出来的会话还没装载到朗读器：先按上次的句子装载再播。
+            s.book?.let { startChapter(it, s.chapterIndex, s.currentSentenceIndex) }
+            ensureService()
+            return
+        }
         speech.togglePlayPause()
         ensureService()
     }
@@ -177,18 +226,33 @@ object PlaybackCenter {
     fun pause() = speech.pause()
 
     fun resume() {
-        if (!_snapshot.value.hasPlayer) return
+        val s = _snapshot.value
+        if (!s.hasPlayer) return
+        if (!speechLoaded) {
+            s.book?.let { startChapter(it, s.chapterIndex, s.currentSentenceIndex) }
+            ensureService()
+            return
+        }
         speech.resume()
         ensureService()
         publish()
     }
 
-    fun seekToSentence(index: Int) = speech.seekTo(index)
+    fun seekToSentence(index: Int) {
+        val s = _snapshot.value
+        if (s.sentences.isEmpty()) return
+        val target = index.coerceIn(0, s.sentences.lastIndex)
+        if (!speechLoaded) {
+            s.book?.let { startChapter(it, s.chapterIndex, target) }
+            return
+        }
+        speech.seekTo(target)
+    }
 
     fun skipSentences(delta: Int) {
         val s = _snapshot.value
         if (s.sentences.isEmpty()) return
-        speech.seekTo((s.currentSentenceIndex + delta).coerceIn(0, s.sentences.lastIndex))
+        seekToSentence(s.currentSentenceIndex + delta)
     }
 
     fun setSpeed(speed: Float) {
@@ -215,6 +279,7 @@ object PlaybackCenter {
 
     fun stop() {
         loadJob?.cancel()
+        speechLoaded = false
         speech.stop()
         _snapshot.update {
             it.copy(

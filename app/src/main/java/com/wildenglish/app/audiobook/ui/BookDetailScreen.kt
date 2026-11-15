@@ -139,8 +139,18 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 Column(Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 20.dp)) {
+                    // 有上次的进度就从那里接着读，没有才从第一章开始。
+                    val hasProgress = state.savedChapterIndex > 0 || state.savedSentenceIndex > 0
+                    if (hasProgress) {
+                        Text(
+                            "上次听到：第 ${state.savedChapterIndex + 1} 章 · 第 ${state.savedSentenceIndex + 1} 句",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
                     GlassPrimaryButton(
-                        label = "开始朗读",
+                        label = if (hasProgress) "继续朗读" else "开始朗读",
                         onClick = { vm.playSaved() },
                         modifier = Modifier.fillMaxWidth(),
                         leading = {
