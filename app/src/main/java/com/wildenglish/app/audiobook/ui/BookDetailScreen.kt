@@ -1,9 +1,9 @@
 package com.wildenglish.app.audiobook.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.PlayArrow
@@ -25,6 +27,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,7 +42,6 @@ import com.wildenglish.app.audiobook.data.Chapter
 import com.wildenglish.app.ui.theme.GlassCardShape
 import com.wildenglish.app.ui.theme.GlassIconButton
 import com.wildenglish.app.ui.theme.GlassPrimaryButton
-import com.wildenglish.app.ui.theme.glass
 
 @Composable
 fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
@@ -53,6 +56,8 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
         return
     }
 
+    val dark = isSystemInDarkTheme()
+
     Column(
         Modifier
             .fillMaxSize()
@@ -64,7 +69,6 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 .padding(horizontal = 6.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val dark = isSystemInDarkTheme()
             GlassIconButton(onClick = vm::goBack, dark = dark) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -158,16 +162,33 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             }
 
             item { SectionHeader("目录") }
-            item {
-                GroupedCard {
-                    book.chapters.forEachIndexed { index, chapter ->
-                        ChapterRow(
-                            chapter = chapter,
-                            isCurrent = index == state.chapterIndex,
-                            onClick = { vm.playChapter(book, index) },
-                        )
-                        if (index < book.chapters.lastIndex) RowDivider(52.dp)
-                    }
+
+            // 懒加载：只组合可见的章节。以前把所有章节塞进一个 item 里
+            // forEachIndexed 一次性组合，几百章会在进入页面时卡住主线程。
+            val cardFill = if (dark) Color.White.copy(alpha = 0.10f)
+            else Color.White.copy(alpha = 0.46f)
+            itemsIndexed(book.chapters, key = { _, chapter -> chapter.index }) { index, chapter ->
+                val first = index == 0
+                val last = index == book.chapters.lastIndex
+                val shape = when {
+                    first && last -> GlassCardShape
+                    first -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                    last -> RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                    else -> RoundedCornerShape(0.dp)
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clip(shape)
+                        .background(cardFill, shape),
+                ) {
+                    ChapterRow(
+                        chapter = chapter,
+                        isCurrent = index == state.chapterIndex,
+                        onClick = { vm.playChapter(book, index) },
+                    )
+                    if (!last) RowDivider(52.dp)
                 }
             }
         }
@@ -182,17 +203,6 @@ private fun SectionHeader(text: String) {
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onBackground,
-    )
-}
-
-@Composable
-private fun GroupedCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .glass(shape = GlassCardShape, dark = isSystemInDarkTheme()),
-        content = content,
     )
 }
 
