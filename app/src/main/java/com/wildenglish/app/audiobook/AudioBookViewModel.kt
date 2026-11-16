@@ -245,8 +245,14 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                     }.getOrNull()
                 }
                 if (full != null) {
+                    // 轻量解析若没找到封面，保留原书封面，避免详情/首页封面消失。
+                    val merged = if (full.coverFile == null && book.coverFile != null) {
+                        full.copy(coverFile = book.coverFile)
+                    } else {
+                        full
+                    }
                     _state.update { ui ->
-                        ui.copy(books = ui.books.map { if (it.id == id) full else it })
+                        ui.copy(books = ui.books.map { if (it.id == id) merged else it })
                     }
                 }
             }

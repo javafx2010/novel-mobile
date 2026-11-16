@@ -167,7 +167,11 @@ object ManifestParser {
             description = root.optString("description").takeIf { it.isNotBlank() },
             // 用 manifest 声明的封面路径（不 listFiles 扫目录）。封面显示层已用
             // 默认图兜底 + 淡入，路径无效时自然显示默认封面，无需在这里验证。
-            coverFile = coverRel.takeIf { it.isNotBlank() }?.let { File(dir.absolutePath, it) },
+            // manifest 未声明封面时扫一次目录找 cover.*（每本仅一次 listFiles，
+            // 远比重解析全部章节便宜）；否则详情页替换后的书会丢掉封面。
+            coverFile = coverRel.takeIf { it.isNotBlank() }
+                ?.let { File(dir.absolutePath, it) }
+                ?: findCover(dir),
             chapters = chapters,
         )
     }
