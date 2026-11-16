@@ -250,8 +250,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 // 上次听到第几句 —— 详情页据此显示「继续朗读」并从该句接着读。
                 savedChapterIndex = savedChapter.coerceAtLeast(0),
                 savedSentenceIndex = library.sentenceOf(id, chapter),
-                // 立即重排内存列表，返回首页时这本书已经在最前，无需重新读磁盘。
-                books = library.sortByRecentAccess(it.books),
+                // 首页排序不在点击瞬间改变；等从详情返回首页时再按最近访问重排。
                 sentences = emptyList(),
                 currentSentenceIndex = -1,
                 error = null,
@@ -756,7 +755,10 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         when (_state.value.screen) {
             Screen.READER -> _state.update { it.copy(screen = Screen.PLAYER) }
             Screen.PLAYER -> _state.update { it.copy(screen = Screen.DETAIL) }
-            Screen.DETAIL -> _state.update { it.copy(screen = Screen.LIBRARY) }
+            // 从详情返回首页时才按最近访问重排（点击瞬间不改首页顺序）。
+            Screen.DETAIL -> _state.update {
+                it.copy(screen = Screen.LIBRARY, books = library.sortByRecentAccess(it.books))
+            }
             Screen.MARKET -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.SETTINGS -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.STATS -> _state.update { it.copy(screen = Screen.LIBRARY) }
