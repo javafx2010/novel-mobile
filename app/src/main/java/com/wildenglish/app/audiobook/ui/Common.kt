@@ -1,7 +1,8 @@
 package com.wildenglish.app.audiobook.ui
 
 import android.content.Context
-import android.util.LruCache
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.ImageBitmap
@@ -42,11 +44,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 
-private val coverCache = LruCache<String, ImageBitmap>(12)
-
 /**
- * 优先读磁盘缩略图（小图，直接 decode）；没有才从原图生成并落盘。
- * 全程在 IO 线程，生成的 bitmap 最长边统一 1280px。
+ * 缩略图直接读文件缓存（小图）；没有才从原图生成并落盘。
+ * 全程在 IO 线程。解码后的 ImageBitmap 由 rememberCover 的 produceState 持有，不再另设内存池。
  */
 private suspend fun loadBitmap(
     context: Context,
@@ -57,7 +57,6 @@ private suspend fun loadBitmap(
         ?: CoverThumbCache.create(context, key, file)
         ?: return@withContext null
     val image = bitmap.asImageBitmap()
-    coverCache.put(key, image)
     image
 }
 
@@ -67,36 +66,31 @@ fun rememberCover(file: File?): ImageBitmap? {
     val context = LocalContext.current.applicationContext
     // lastModified() 是一次磁盘 stat，用 remember 缓存，避免每次重组都在主线程执行。
     val key = remember(file?.absolutePath) {
-        file?.let { it.absolutePath + ":" + it.lastModified() }
+        file?.let { CoverThumbCache.keyFor(it) }
     }
     val image by produceState<ImageBitmap?>(
-        initialValue = key?.let { coverCache.get(it) },
+        initialValue = null,
         key1 = key,
     ) {
         value = if (file == null || key == null) {
             null
         } else {
-            coverCache.get(key) ?: loadBitmap(context, key, file)
+            loadBitmap(context, key, file)
         }
     }
     return image
 }
 
-private val remoteCoverCache = LruCache<String, ImageBitmap>(16)
-
-/** Loads (and caches) a cover bitmap over the network, e.g. a market cover from the backend. */
+/** Loads a cover bitmap over the network (cached to file by [MarketApi.fetchBitmap]). */
 @Composable
 fun rememberRemoteCover(url: String?): ImageBitmap? {
     if (url.isNullOrBlank()) return null
     val context = LocalContext.current.applicationContext
-    var image by remember(url) { mutableStateOf(remoteCoverCache.get(url)) }
+    var image by remember(url) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(url) {
         if (image == null) {
             val loaded = MarketApi.fetchBitmap(context, url)
-            if (loaded != null) {
-                remoteCoverCache.put(url, loaded)
-                image = loaded
-            }
+            if (loaded != null) image = loaded
         }
     }
     return image
@@ -110,6 +104,13 @@ fun BookCover(
     modifier: Modifier = Modifier,
 ) {
     val bitmap = rememberCover(coverFile)
+    // 默认封面先显示；真实封面加载好后淡入覆盖，避免先空白后跳图的闪烁。
+    val targetAlpha = if (bitmap != null) 1f else 0f
+    val coverAlpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = tween(durationMillis = 260),
+        label = "coverFadeIn",
+    )
     val shape = RoundedCornerShape(12.dp)
     Box(
         modifier = modifier
@@ -118,20 +119,22 @@ fun BookCover(
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
+        // 底层：默认书封（ComfyUI 生成的通用封面），始终存在。
+        Image(
+            painter = painterResource(R.drawable.cover_default),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        // 上层：真实封面，加载好后淡入。
         if (bitmap != null) {
             Image(
                 bitmap = bitmap,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            // 没有封面：用默认书封（ComfyUI 生成的通用封面）占位，不再显示首字。
-            Image(
-                painter = painterResource(R.drawable.cover_default),
-                contentDescription = title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(coverAlpha),
             )
         }
     }

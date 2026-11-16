@@ -1,5 +1,7 @@
 package com.wildenglish.app.audiobook.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,8 +35,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -239,19 +243,26 @@ private fun MarketTile(
             contentAlignment = Alignment.Center,
         ) {
             val cover = rememberRemoteCover(item.coverUrl)
+            // 默认封面垫底，远程封面加载好后淡入覆盖。
+            val coverAlpha by animateFloatAsState(
+                targetValue = if (cover != null) 1f else 0f,
+                animationSpec = tween(durationMillis = 260),
+                label = "marketCoverFadeIn",
+            )
+            Image(
+                painter = painterResource(R.drawable.cover_default),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
             if (cover != null) {
                 Image(
                     bitmap = cover,
                     contentDescription = item.title,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Image(
-                    painter = painterResource(R.drawable.cover_default),
-                    contentDescription = item.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(coverAlpha),
                 )
             }
             if (downloading) {

@@ -171,7 +171,13 @@ class AudiobookLibrary(context: Context) {
                 temp.deleteRecursively()
             }
             val book = ManifestParser.parse(destination)
-            if (book == null) ImportResult.Failure("导入后的校验失败") else ImportResult.Success(book)
+            if (book == null) {
+                ImportResult.Failure("导入后的校验失败")
+            } else {
+                // 导入时就把封面缩略图生成并落盘；之后书架/详情/播放一直读缓存小图。
+                runCatching { CoverThumbCache.preGenerate(appContext, book.coverFile) }
+                ImportResult.Success(book)
+            }
         } catch (e: Exception) {
             ImportResult.Failure(e.message ?: "导入失败")
         } finally {
