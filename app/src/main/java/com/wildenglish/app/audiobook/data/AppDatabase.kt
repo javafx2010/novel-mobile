@@ -140,6 +140,50 @@ object AppDatabase {
         write { db -> db.delete(T_BOOKS, "$C_BOOK_ID=?", arrayOf(bookId)) }
     }
 
+    /** 从 DB 读图书快照（标题/作者/目录/封面/进度），冷启动毫秒级，无需解析 manifest。 */
+    fun loadBooks(): List<BookRow> {
+        val out = ArrayList<BookRow>()
+        db().rawQuery(
+            "SELECT $C_BOOK_ID,$C_BOOK_TITLE,$C_BOOK_AUTHOR,$C_BOOK_NARRATOR,$C_BOOK_DESC," +
+                    "$C_BOOK_DIR,$C_BOOK_COVER,$C_BOOK_CHAPTERS,$C_BOOK_ACCESS," +
+                    "$C_BOOK_PROGRESS_CHAPTER,$C_BOOK_PROGRESS_SENTENCE FROM $T_BOOKS",
+            null,
+        ).use { c ->
+            while (c.moveToNext()) {
+                out.add(
+                    BookRow(
+                        id = c.getString(0).orEmpty(),
+                        title = c.getString(1).orEmpty(),
+                        author = c.getString(2),
+                        narrator = c.getString(3),
+                        description = c.getString(4),
+                        dirPath = c.getString(5).orEmpty(),
+                        coverPath = c.getString(6),
+                        chapterCount = c.getInt(7),
+                        lastAccess = c.getLong(8),
+                        progressChapter = c.getInt(9),
+                        progressSentence = c.getInt(10),
+                    )
+                )
+            }
+        }
+        return out
+    }
+
+    data class BookRow(
+        val id: String,
+        val title: String,
+        val author: String?,
+        val narrator: String?,
+        val description: String?,
+        val dirPath: String,
+        val coverPath: String?,
+        val chapterCount: Int,
+        val lastAccess: Long,
+        val progressChapter: Int,
+        val progressSentence: Int,
+    )
+
     /** 得到图书 id -> 最近访问时间的映射。同步读，**必须在 Dispatchers.IO 调用**。 */
     fun bookAccessTimes(): Map<String, Long> {
         val out = HashMap<String, Long>()

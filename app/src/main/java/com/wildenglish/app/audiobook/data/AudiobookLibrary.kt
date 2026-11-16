@@ -3,9 +3,12 @@ package com.wildenglish.app.audiobook.data
 import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.File
@@ -44,7 +47,13 @@ class AudiobookLibrary(context: Context) {
     init {
         VoiceCache.init(appContext)
         AppDatabase.init(appContext)
-        restoreProgressFromSdcard()
+        // SD 卡进度恢复放到后台线程异步做，绝不阻塞列表加载（读 SD 卡可能很慢）。
+        kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() +
+                    kotlinx.coroutines.Dispatchers.IO
+        ).launch {
+            restoreProgressFromSdcard()
+        }
     }
 
     /**
@@ -106,14 +115,51 @@ class AudiobookLibrary(context: Context) {
             .sortedWith(compareByDescending<File> { accessTime(it.name) }.thenBy { it.name })
 
     /**
-     * 逐部解析并 emit，供首页「加载完一部显示一部」使用。单个损坏目录会被跳过，
-     * 不会让整个书库加载失败或卡住。
+     * 同步快照：直接列目录 + 解析 manifest，供首页一次性加载。
+     * 不经过 Flow 的 emit 反压，毫秒级返回。
+     */
+    /** 从数据库读轻量图书（毫秒级），首页优先用它，无需解析 manifest。 */
+    fun booksFromDb(): List<Audiobook> =
+        AppDatabase.loadBooks()
+            .sortedByDescending { it.lastAccess }
+            .map { row ->
+                Audiobook(
+                    id = row.id,
+                    dir = File(row.dirPath),
+                    title = row.title,
+                    author = row.author,
+                    narrator = row.narrator,
+                    description = row.description,
+                    coverFile = row.coverPath?.let { File(it) },
+                    chapters = emptyList(),
+                    declaredChapterCount = row.chapterCount,
+                )
+            }
+
+    suspend fun loadBooksSnapshot(): List<Audiobook> {
+        // 数据库优先：冷启动不再解析 manifest，直接读库（毫秒级）。
+        val fromDb = booksFromDb()
+        if (fromDb.isNotEmpty()) return fromDb
+        // DB 为空（首次安装/升级）才解析 manifest，并 upsert 回库。
+        return parseBooksFromDisk()
+    }
+
+    private suspend fun parseBooksFromDisk(): List<Audiobook> {
+        val dirs = orderedBookDirs()
+        val parsed = kotlinx.coroutines.coroutineScope {
+            dirs.map { dir ->
+                async(Dispatchers.IO) { runCatching { ManifestParser.parseLight(dir) }.getOrNull() }
+            }.awaitAll().filterNotNull()
+        }
+        runCatching { parsed.forEach { AppDatabase.upsertBook(it) } }
+        return parsed
+    }
+
+    /**
+     * 逐部解析并 emit，供渐进显示用（保留给其它可能的调用点）。
      */
     fun booksFlow(): Flow<Audiobook> = flow {
-        for (dir in orderedBookDirs()) {
-            val book = runCatching { ManifestParser.parse(dir) }.getOrNull() ?: continue
-            emit(book)
-        }
+        loadBooksSnapshot().forEach { emit(it) }
     }.flowOn(Dispatchers.IO)
 
     fun listBooks(): List<Audiobook> {

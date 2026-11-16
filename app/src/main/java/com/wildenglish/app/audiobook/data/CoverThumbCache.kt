@@ -10,8 +10,8 @@ import java.io.FileOutputStream
 import java.security.MessageDigest
 
 /**
- * 封面缩略图的文件缓存：把大图统一裁剪/缩放到小尺寸后写入 `cacheDir/cover_thumbs_v2/`，
- * 并**自适应压缩到 10KB 以内**（先降 WEBP 质量，仍超再降尺寸）。
+ * 封面缩略图的文件缓存：把大图统一裁剪/缩放到小尺寸后写入 `cacheDir/cover_thumbs_v3/`，
+ * 并**自适应压缩到 30KB 以内**（先降 WEBP 质量，仍超再降尺寸）。
  *
  * 之后直接 decode 这张小图，不再重复解大图、不再占十几 MB 内存。
  * key 由调用方给出，建议包含「源路径 + lastModified」或「url」，源变了自然生成新缩略图；
@@ -19,16 +19,16 @@ import java.security.MessageDigest
  */
 object CoverThumbCache {
 
-    private const val DIR = "cover_thumbs_v2"
+    private const val DIR = "cover_thumbs_v3"
 
-    /** 起始最长边（px）。详情页封面 150dp≈450px @3x，640 足够清晰。 */
-    private const val START_EDGE = 640
+    /** 起始最长边（px）。30KB 预算下可比之前更清晰。 */
+    private const val START_EDGE = 960
     private const val MIN_EDGE = 160
     private const val START_QUALITY = 72
     private const val MIN_QUALITY = 35
 
-    /** 10KB 上限。 */
-    private const val TARGET_BYTES = 10 * 1024
+    /** 30KB 上限。 */
+    private const val TARGET_BYTES = 30 * 1024
     private const val MAX_FILES = 160
 
     private fun dir(context: Context): File =
@@ -91,7 +91,7 @@ object CoverThumbCache {
     }.getOrNull()
 
     /**
-     * 自适应编码：从 START_EDGE / START_QUALITY 起步，超过 10KB 先逐级降质量，
+     * 自适应编码：从 START_EDGE / START_QUALITY 起步，超过 30KB 先逐级降质量，
      * 降到最低质量仍超则逐级缩小尺寸，直到 <= TARGET_BYTES。
      */
     private fun save(context: Context, key: String, bitmap: Bitmap): Bitmap {

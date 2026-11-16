@@ -63,10 +63,22 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     private var syncJob: Job? = null
 
     init {
-        AppSettings.init(application)
-        ReadingStats.init(application)
+        // 第一优先：立刻启动图书加载，首页先出书，其余初始化全部让到首帧之后。
+        reload()
+
+        viewModelScope.launch {
+            // 让出主线程，等首页第一次组合/图书开始显示后再做其它初始化。
+            kotlinx.coroutines.delay(80)
+            withContext(Dispatchers.IO) { initAfterFirstFrame() }
+        }
+    }
+
+    /** 非首屏关键的初始化：设置 / 统计 / 订阅 / 播放恢复 / 各类 Flow 收集 / 市场同步。 */
+    private fun initAfterFirstFrame() {
+        AppSettings.init(getApplication())
+        ReadingStats.init(getApplication())
         _state.update {
-            it.copy(rssSubscriptions = RssStore.subscriptions(application).sorted())
+            it.copy(rssSubscriptions = RssStore.subscriptions(getApplication()).sorted())
         }
         // 音色与配音目录属于全局设置，改完界面立即反映（并用于“设置”页展示）。
         viewModelScope.launch {
@@ -90,7 +102,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             ReadingStats.state.collect { stats -> _state.update { it.copy(stats = stats) } }
         }
         // 订阅文章的独立播放器状态。
-        RssPlayerCenter.init(application)
+        RssPlayerCenter.init(getApplication())
         viewModelScope.launch {
             RssPlayerCenter.state.collect { player -> _state.update { it.copy(rssPlayer = player) } }
         }
@@ -107,7 +119,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             VoicePrepCenter.readyIds.collect { r -> _state.update { it.copy(readyVoiceBookIds = r) } }
         }
-        PlaybackCenter.init(application)
+        PlaybackCenter.init(getApplication())
         viewModelScope.launch {
             PlaybackCenter.snapshot.collect { snap ->
                 _state.update { ui ->
@@ -129,7 +141,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
         }
-        reload()
         // 启动时检查后台是否有已下载书的新版本（静默）。
         syncMarketUpdates()
     }
@@ -143,19 +154,14 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         reloadJob?.cancel()
         reloadJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true, books = emptyList(), error = null) }
-            val loaded = ArrayList<Audiobook>()
             try {
-                library.booksFlow().collect { book ->
-                    loaded.add(book)
-                    // 第一部到达即收起转圈，后续每部继续追加显示。
-                    _state.update { it.copy(isLoading = false, books = loaded.toList()) }
-                }
+                val all = withContext(Dispatchers.IO) { library.loadBooksSnapshot() }
+                _state.update { it.copy(isLoading = false, books = all) }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message ?: "书库加载失败") }
             } finally {
-                // 无论成功/失败/取消，都确保 loading 不会卡住。
                 _state.update { it.copy(isLoading = false) }
             }
         }
@@ -235,7 +241,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         // 打开书即记为一次访问：首页会按最近访问优先排序（key 用目录名）。
         library.touchAccess(book.dir.name)
         val (savedChapter, _) = library.progressOf(id)
-        val chapter = savedChapter.coerceIn(0, (book.chapters.size - 1).coerceAtLeast(0))
+        val chapter = savedChapter.coerceAtLeast(0)
         _state.update {
             it.copy(
                 screen = Screen.DETAIL,
@@ -250,6 +256,20 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 currentSentenceIndex = -1,
                 error = null,
             )
+        }
+        // 首页用的是 DB 轻量书（chapters 为空）；后台做一次完整解析替换，
+        // 供详情页目录 / 播放使用，不阻塞切屏。
+        if (book.chapters.isEmpty()) {
+            viewModelScope.launch {
+                val full = withContext(Dispatchers.IO) {
+                    runCatching { com.wildenglish.app.audiobook.data.ManifestParser.parse(book.dir) }.getOrNull()
+                }
+                if (full != null) {
+                    _state.update { ui ->
+                        ui.copy(books = ui.books.map { if (it.id == id) full else it })
+                    }
+                }
+            }
         }
     }
 

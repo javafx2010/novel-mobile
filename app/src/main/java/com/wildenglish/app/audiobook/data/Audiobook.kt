@@ -23,8 +23,10 @@ data class Audiobook(
     val description: String?,
     val coverFile: File?,
     val chapters: List<Chapter>,
+    /** 从数据库轻量加载时章节数为已知值、章节列表为空，用此值显示。 */
+    val declaredChapterCount: Int = -1,
 ) {
-    val chapterCount: Int get() = chapters.size
+    val chapterCount: Int get() = if (declaredChapterCount >= 0) declaredChapterCount else chapters.size
 }
 
 /**
@@ -108,6 +110,64 @@ object ManifestParser {
             narrator = root.optString("narrator").takeIf { it.isNotBlank() },
             description = root.optString("description").takeIf { it.isNotBlank() },
             coverFile = resolveSafe(dir, root.optString("cover"))?.takeIf { it.isFile } ?: findCover(dir),
+            chapters = chapters,
+        )
+    }
+
+    /**
+     * 轻量解析：只从 manifest 构造元数据，不做逐章 canonicalFile / isFile / listFiles 检查。
+     * 用于首页列表快速加载 —— 完整文件校验留给真正打开/播放该书时。
+     */
+    fun parseLight(dir: File): Audiobook? {
+        val manifestFile = File(dir, "manifest.json")
+        if (!manifestFile.isFile) return null
+        val root = runCatching { JSONObject(manifestFile.readText(Charsets.UTF_8)) }.getOrNull()
+            ?: return null
+        if (root.optString("format", FORMAT) != FORMAT) return null
+        if (root.optInt("version", VERSION) > VERSION) return null
+        val title = root.optString("title").takeIf { it.isNotBlank() } ?: return null
+        val chaptersJson = root.optJSONArray("chapters") ?: return null
+
+        val chapters = ArrayList<Chapter>()
+        for (i in 0 until chaptersJson.length()) {
+            val c = chaptersJson.optJSONObject(i) ?: continue
+            val base = dir.absolutePath
+            val textRel = c.optString("text")
+            val cuesRel = c.optString("cues")
+            val audioRel = c.optString("audio")
+            val textFile = textRel.takeIf { it.isNotBlank() }?.let { File(base, it) }
+            val cuesFile = cuesRel.takeIf { it.isNotBlank() }?.let { File(base, it) }
+                ?: textFile?.let { File(it.parentFile, it.nameWithoutExtension + ".vtt") }
+            if (textFile == null && cuesFile == null) continue
+            val audioFile = audioRel.takeIf { it.isNotBlank() }?.let { File(base, it) }
+            val chapterTitle = c.optString("title").takeIf { it.isNotBlank() }
+                ?: textFile?.nameWithoutExtension ?: "第 ${chapters.size + 1} 章"
+            val duration = if (c.has("durationSeconds") && !c.isNull("durationSeconds")) {
+                c.optInt("durationSeconds")
+            } else null
+            chapters.add(
+                Chapter(
+                    chapters.size,
+                    chapterTitle,
+                    audioFile,
+                    textFile,
+                    cuesFile,
+                    duration
+                )
+            )
+        }
+        if (chapters.isEmpty()) return null
+        val coverRel = root.optString("cover")
+        return Audiobook(
+            id = root.optString("id").takeIf { it.isNotBlank() } ?: dir.name,
+            dir = dir,
+            title = title,
+            author = root.optString("author").takeIf { it.isNotBlank() },
+            narrator = root.optString("narrator").takeIf { it.isNotBlank() },
+            description = root.optString("description").takeIf { it.isNotBlank() },
+            // 用 manifest 声明的封面路径（不 listFiles 扫目录）。封面显示层已用
+            // 默认图兜底 + 淡入，路径无效时自然显示默认封面，无需在这里验证。
+            coverFile = coverRel.takeIf { it.isNotBlank() }?.let { File(dir.absolutePath, it) },
             chapters = chapters,
         )
     }
