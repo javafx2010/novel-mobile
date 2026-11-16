@@ -28,10 +28,13 @@ object MarketSyncStore {
 
     fun put(context: Context, marketId: Long, updatedAt: String, localId: String) {
         prefs(context).edit().putString(key(marketId), "$updatedAt$SEP$localId").apply()
+        AppDatabase.init(context.applicationContext)
+        runCatching { AppDatabase.putMarketSync(marketId, updatedAt, localId) }
     }
 
     fun remove(context: Context, marketId: Long) {
         prefs(context).edit().remove(key(marketId)).apply()
+        runCatching { AppDatabase.deleteMarketSync(marketId) }
     }
 
     /** Every recorded market book, keyed by backend novel id. */

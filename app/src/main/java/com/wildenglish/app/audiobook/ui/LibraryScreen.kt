@@ -161,7 +161,7 @@ fun LibraryScreen(
             confirmButton = {
                 TextButton(onClick = {
                     bookToDelete = null
-                    vm.deleteBook(book.id)
+                    vm.deleteBook(book)
                 }) { Text("删除", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {

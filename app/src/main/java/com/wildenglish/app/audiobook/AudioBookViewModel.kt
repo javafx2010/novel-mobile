@@ -209,12 +209,13 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
 
-    fun deleteBook(id: String) {
+    fun deleteBook(book: Audiobook) {
+        val id = book.id
         viewModelScope.launch {
             VoicePrepCenter.cancel(id)
             if (_state.value.currentBookId == id) PlaybackCenter.stop()
-            // library.delete() removes the whole book dir, including tts/.
-            withContext(Dispatchers.IO) { library.delete(id) }
+            // 直接用 book.dir 删除，不再靠 id 重新拼目录名（id 可能和目录名不一致）。
+            withContext(Dispatchers.IO) { library.delete(book) }
             val books = withContext(Dispatchers.IO) { library.listBooks() }
             _state.update {
                 val wasCurrent = it.currentBookId == id

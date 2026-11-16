@@ -64,6 +64,7 @@ object ReadingStats {
 
     fun init(context: Context) {
         if (prefs != null) return
+        AppDatabase.init(context.applicationContext)
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
         runCatching {
@@ -77,6 +78,11 @@ object ReadingStats {
             JSONObject(p.getString(KEY_FINISHED, "{}") ?: "{}").let { obj ->
                 obj.keys().forEach { id -> finished[id] = obj.optLong(id) }
             }
+        }
+        // SP 历史数据全量灌入数据库（覆盖），作为初始数据。
+        runCatching {
+            daily.forEach { (day, seconds) -> AppDatabase.setReadingSeconds(day, seconds) }
+            finished.forEach { (id, day) -> AppDatabase.markFinished(id, day) }
         }
         publish()
     }
@@ -94,7 +100,9 @@ object ReadingStats {
     /** 一本书听完（播完最后一章）时记一次。 */
     fun markFinished(bookId: String) {
         if (bookId.isBlank() || finished.containsKey(bookId)) return
-        finished[bookId] = LocalDate.now().toEpochDay()
+        val day = LocalDate.now().toEpochDay()
+        finished[bookId] = day
+        runCatching { AppDatabase.markFinished(bookId, day) }
         flush()
         publish()
     }
@@ -116,6 +124,10 @@ object ReadingStats {
             .putString(KEY_DAILY, dailyJson.toString())
             .putString(KEY_FINISHED, finishedJson.toString())
             .apply()
+        // 统计数据同步落库（节流，5 秒一次；数据量很小）。
+        runCatching {
+            daily.forEach { (day, seconds) -> AppDatabase.setReadingSeconds(day, seconds) }
+        }
         lastFlush = System.currentTimeMillis()
     }
 

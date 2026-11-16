@@ -56,5 +56,7 @@ object RssStore {
         val current = subscriptions(context).toMutableSet()
         if (subscribed) current.add(feedId) else current.remove(feedId)
         prefs(context).edit().putStringSet(KEY, current).apply()
+        AppDatabase.init(context.applicationContext)
+        runCatching { AppDatabase.setRssSubscribed(feedId, subscribed) }
     }
 }

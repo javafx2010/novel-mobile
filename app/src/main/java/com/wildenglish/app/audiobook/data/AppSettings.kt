@@ -58,6 +58,7 @@ object AppSettings {
     fun init(context: Context) {
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
+        AppDatabase.init(context.applicationContext)
         _state.value = AppSettingsState(
             voice = VoiceConfig.byName(p.getString(KEY_VOICE, null)),
             storageMode = runCatching {
@@ -69,6 +70,32 @@ object AppSettings {
                 .coerceIn(MIN_DAILY_GOAL, MAX_DAILY_GOAL),
             yearPlanBooks = p.getInt(KEY_YEAR_PLAN, 24).coerceIn(MIN_YEAR_PLAN, MAX_YEAR_PLAN),
         )
+        // 设置全量落库。
+        runCatching {
+            val s = _state.value
+            persistToDb(KEY_VOICE, s.voice.name)
+            persistToDb(KEY_STORAGE_MODE, s.storageMode.name)
+            persistToDb(KEY_TREE_URI, s.customTreeUri.orEmpty())
+            persistToDb(KEY_SHOW_SENTENCE, s.showSentence.toString())
+            persistToDb(KEY_DAILY_GOAL, s.dailyGoalMinutes.toString())
+            persistToDb(KEY_YEAR_PLAN, s.yearPlanBooks.toString())
+        }
+    }
+
+    /** 双写：SharedPreferences + 数据库。 */
+    private fun persist(key: String, value: String, bool: Boolean? = null, int: Int? = null) {
+        val editor = prefs?.edit()
+        when {
+            bool != null -> editor?.putBoolean(key, bool)
+            int != null -> editor?.putInt(key, int)
+            else -> editor?.putString(key, value)
+        }
+        editor?.apply()
+        persistToDb(key, value)
+    }
+
+    private fun persistToDb(key: String, value: String) {
+        runCatching { AppDatabase.putSetting(key, value) }
     }
 
     fun voice(): VoiceConfig = _state.value.voice
@@ -77,19 +104,19 @@ object AppSettings {
         val voice = VoiceConfig.byName(name)
         if (voice == _state.value.voice) return
         _state.value = _state.value.copy(voice = voice)
-        prefs?.edit()?.putString(KEY_VOICE, voice.name)?.apply()
+        persist(KEY_VOICE, voice.name)
     }
 
     fun setStorageMode(mode: VoiceStorageMode) {
         if (mode == _state.value.storageMode) return
         _state.value = _state.value.copy(storageMode = mode)
-        prefs?.edit()?.putString(KEY_STORAGE_MODE, mode.name)?.apply()
+        persist(KEY_STORAGE_MODE, mode.name)
         VoiceStorage.invalidate()
     }
 
     fun setCustomTreeUri(uri: String?) {
         _state.value = _state.value.copy(customTreeUri = uri)
-        prefs?.edit()?.putString(KEY_TREE_URI, uri)?.apply()
+        persist(KEY_TREE_URI, uri.orEmpty())
         VoiceStorage.invalidate()
     }
 
@@ -97,7 +124,7 @@ object AppSettings {
     fun setShowSentence(show: Boolean) {
         if (show == _state.value.showSentence) return
         _state.value = _state.value.copy(showSentence = show)
-        prefs?.edit()?.putBoolean(KEY_SHOW_SENTENCE, show)?.apply()
+        persist(KEY_SHOW_SENTENCE, show.toString(), bool = show)
     }
 
     /** 每日阅读目标（分钟），5–240，步长 5。 */
@@ -105,7 +132,7 @@ object AppSettings {
         val value = minutes.coerceIn(MIN_DAILY_GOAL, MAX_DAILY_GOAL)
         if (value == _state.value.dailyGoalMinutes) return
         _state.value = _state.value.copy(dailyGoalMinutes = value)
-        prefs?.edit()?.putInt(KEY_DAILY_GOAL, value)?.apply()
+        persist(KEY_DAILY_GOAL, value.toString(), int = value)
     }
 
     /** 一年读书计划：今年读完本数目标。 */
@@ -113,7 +140,7 @@ object AppSettings {
         val value = books.coerceIn(MIN_YEAR_PLAN, MAX_YEAR_PLAN)
         if (value == _state.value.yearPlanBooks) return
         _state.value = _state.value.copy(yearPlanBooks = value)
-        prefs?.edit()?.putInt(KEY_YEAR_PLAN, value)?.apply()
+        persist(KEY_YEAR_PLAN, value.toString(), int = value)
     }
 
     private const val MIN_DAILY_GOAL = 5

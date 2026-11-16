@@ -52,6 +52,11 @@ object CoverThumbCache {
         return create(context, key, file)
     }
 
+    /** 删除图书时清掉对应的封面缩略图缓存。 */
+    fun remove(context: Context, file: File) {
+        runCatching { File(dir(context), md5(keyFor(file)) + ".webp").delete() }
+    }
+
     /** 命中磁盘小图则直接解码返回；旧的大图或不存在的返回 null。 */
     fun read(context: Context, key: String): Bitmap? = runCatching {
         val f = fileFor(context, key)

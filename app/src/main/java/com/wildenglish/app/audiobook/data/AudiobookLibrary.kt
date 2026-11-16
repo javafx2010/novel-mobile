@@ -43,6 +43,7 @@ class AudiobookLibrary(context: Context) {
 
     init {
         VoiceCache.init(appContext)
+        AppDatabase.init(appContext)
         restoreProgressFromSdcard()
     }
 
@@ -86,6 +87,7 @@ class AudiobookLibrary(context: Context) {
      */
     fun touchAccess(dirName: String) {
         accessPrefs.edit().putLong(dirName, System.currentTimeMillis()).apply()
+        runCatching { AppDatabase.touchBook(dirName) }
     }
 
     private fun accessTime(dirName: String): Long =
@@ -116,9 +118,12 @@ class AudiobookLibrary(context: Context) {
 
     fun listBooks(): List<Audiobook> {
         if (!libraryRoot.isDirectory) return emptyList()
-        return sortByRecentAccess(
+        val books = sortByRecentAccess(
             orderedBookDirs().mapNotNull { runCatching { ManifestParser.parse(it) }.getOrNull() }
         )
+        // 扫描结果同步进数据库（覆盖升级前的旧书 / 外部放入的书）。
+        runCatching { books.forEach { AppDatabase.upsertBook(it) } }
+        return books
     }
 
     suspend fun import(uri: Uri): ImportResult = withContext(Dispatchers.IO) {
@@ -174,6 +179,8 @@ class AudiobookLibrary(context: Context) {
             if (book == null) {
                 ImportResult.Failure("导入后的校验失败")
             } else {
+                // 图书信息落库。
+                runCatching { AppDatabase.upsertBook(book) }
                 // 导入时就把封面缩略图生成并落盘；之后书架/详情/播放一直读缓存小图。
                 runCatching { CoverThumbCache.preGenerate(appContext, book.coverFile) }
                 ImportResult.Success(book)
@@ -216,17 +223,25 @@ class AudiobookLibrary(context: Context) {
         head[0] == 'J'.code.toByte() && head[1] == 'P'.code.toByte() &&
                 head[2] == 'D'.code.toByte() && head[3] == '1'.code.toByte()
 
-    fun delete(id: String) {
-        val safeId = sanitizeId(id)
-        VoiceCache.clearForId(safeId)
-        File(libraryRoot, safeId).deleteRecursively()
+    /**
+     * 删除整本书：直接用 [book.dir]（唯一可靠的目录引用），不再从 id 猜目录名。
+     * 同时清掉进度、访问记录与封面缩略图缓存。
+     */
+    fun delete(book: Audiobook) {
+        val id = book.id
+        val dirName = book.dir.name
+        runCatching { AppDatabase.deleteBook(id) }
+        VoiceCache.clearForId(dirName)
+        runCatching { book.dir.deleteRecursively() }
         val editor = prefs.edit()
         editor.remove(progressKey(id))
         prefs.all.keys
             .filter { it.startsWith(positionKeyPrefix(id)) }
             .forEach { editor.remove(it) }
         editor.apply()
-        accessPrefs.edit().remove(safeId).apply()
+        accessPrefs.edit().remove(dirName).apply()
+        // 封面缩略图缓存按「封面路径+lastModified」做 key，随书一起清掉。
+        book.coverFile?.let { runCatching { CoverThumbCache.remove(appContext, it) } }
         AppStorage.mirrorProgress(appContext, progressSnapshot())
     }
 
@@ -250,6 +265,7 @@ class AudiobookLibrary(context: Context) {
             .putLong(positionKey(id, chapterIndex), positionMs)
             .putString(KEY_LAST_BOOK, id)
             .apply()
+        runCatching { AppDatabase.updateBookProgress(id, chapterIndex, positionMs.toInt()) }
         AppStorage.mirrorProgress(appContext, progressSnapshot())
     }
 
