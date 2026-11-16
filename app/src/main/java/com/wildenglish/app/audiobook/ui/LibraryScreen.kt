@@ -24,8 +24,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
@@ -92,14 +90,6 @@ fun LibraryScreen(
                 )
             }
             val dark = isSystemInDarkTheme()
-            GlassIconButton(onClick = vm::openStats, dark = dark) {
-                Icon(Icons.Filled.BarChart, contentDescription = "阅读统计")
-            }
-            androidx.compose.foundation.layout.Spacer(Modifier.size(4.dp))
-            GlassIconButton(onClick = vm::openRss, dark = dark) {
-                Icon(Icons.Filled.RssFeed, contentDescription = "订阅")
-            }
-            androidx.compose.foundation.layout.Spacer(Modifier.size(4.dp))
             GlassIconButton(onClick = vm::openSettings, dark = dark) {
                 Icon(Icons.Filled.Settings, contentDescription = "设置")
             }

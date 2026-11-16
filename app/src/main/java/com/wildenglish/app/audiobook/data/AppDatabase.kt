@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
  * 把原先分散在多个 SharedPreferences / 文件里的信息集中落库：
  *  - [books]：图书元数据、章节数、封面路径、最近访问、上次读到的章/句
  *  - [settings]：全局设置（音色 / 存储 / 显示 / 目标）
- *  - [reading_stats]：每日收听秒数
  *  - [finished_books]：读完的书
  *  - [rss_subscriptions]：RSS 订阅
  *
@@ -48,19 +47,6 @@ object AppDatabase {
     const val C_KEY = "key"
     const val C_VALUE = "value"
 
-    /** 每日统计表。 */
-    const val T_READING = "reading_stats"
-    const val C_DAY = "day"
-    const val C_SECONDS = "seconds"
-
-    /** 读完记录表。 */
-    const val T_FINISHED = "finished_books"
-    const val C_FINISHED_BOOK = "book_id"
-    const val C_FINISHED_DAY = "finished_day"
-
-    /** RSS 订阅表。 */
-    const val T_RSS = "rss_subscriptions"
-    const val C_RSS_ID = "feed_id"
 
     /** 市场同步记录表。 */
     const val T_MARKET = "market_sync"
@@ -214,52 +200,6 @@ object AppDatabase {
         }
     }
 
-    // ---- reading stats ----
-
-    /** 全量写入某天秒数（SP -> DB 初始迁移用，覆盖） */
-    fun setReadingSeconds(day: Long, seconds: Long) {
-        write { db ->
-            val values = ContentValues().apply {
-                put(C_DAY, day)
-                put(C_SECONDS, seconds)
-            }
-            db.insertWithOnConflict(T_READING, null, values, SQLiteDatabase.CONFLICT_REPLACE)
-        }
-    }
-
-    fun addReadingSeconds(day: Long, seconds: Long) {
-        write { db ->
-            db.execSQL(
-                "INSERT INTO $T_READING($C_DAY,$C_SECONDS) VALUES(?,?) " +
-                        "ON CONFLICT($C_DAY) DO UPDATE SET $C_SECONDS=$C_SECONDS+excluded.$C_SECONDS",
-                arrayOf<Any>(day, seconds),
-            )
-        }
-    }
-
-    fun markFinished(bookId: String, day: Long) {
-        write { db ->
-            val values = ContentValues().apply {
-                put(C_FINISHED_BOOK, bookId)
-                put(C_FINISHED_DAY, day)
-            }
-            db.insertWithOnConflict(T_FINISHED, null, values, SQLiteDatabase.CONFLICT_REPLACE)
-        }
-    }
-
-    // ---- rss ----
-
-    fun setRssSubscribed(feedId: String, subscribed: Boolean) {
-        write { db ->
-            if (subscribed) {
-                val values = ContentValues().apply { put(C_RSS_ID, feedId) }
-                db.insertWithOnConflict(T_RSS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
-            } else {
-                db.delete(T_RSS, "$C_RSS_ID=?", arrayOf(feedId))
-            }
-        }
-    }
-
     /** 市场同步记录 upsert。 */
     fun putMarketSync(marketId: Long, updatedAt: String, localId: String) {
         write { db ->
@@ -301,17 +241,6 @@ object AppDatabase {
             db.execSQL(
                 "CREATE TABLE IF NOT EXISTS $T_SETTINGS (" +
                         "$C_KEY TEXT PRIMARY KEY, $C_VALUE TEXT)"
-            )
-            db.execSQL(
-                "CREATE TABLE IF NOT EXISTS $T_READING (" +
-                        "$C_DAY INTEGER PRIMARY KEY, $C_SECONDS INTEGER)"
-            )
-            db.execSQL(
-                "CREATE TABLE IF NOT EXISTS $T_FINISHED (" +
-                        "$C_FINISHED_BOOK TEXT PRIMARY KEY, $C_FINISHED_DAY INTEGER)"
-            )
-            db.execSQL(
-                "CREATE TABLE IF NOT EXISTS $T_RSS ($C_RSS_ID TEXT PRIMARY KEY)"
             )
             db.execSQL(
                 "CREATE TABLE IF NOT EXISTS $T_MARKET (" +

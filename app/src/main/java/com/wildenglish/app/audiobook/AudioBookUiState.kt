@@ -4,14 +4,10 @@ import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.Chapter
 import com.wildenglish.app.audiobook.data.MarketCategory
 import com.wildenglish.app.audiobook.data.MarketItem
-import com.wildenglish.app.audiobook.data.ReadingStatsSnapshot
-import com.wildenglish.app.audiobook.data.RssArticle
-import com.wildenglish.app.audiobook.data.RssFeed
 import com.wildenglish.app.audiobook.data.VoiceConfig
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
-import com.wildenglish.app.audiobook.playback.RssPlayerCenter
 
-enum class Screen { LIBRARY, DETAIL, PLAYER, READER, MARKET, SETTINGS, STATS, RSS, RSS_PLAYER }
+enum class Screen { LIBRARY, DETAIL, PLAYER, READER, MARKET, SETTINGS }
 
 /** Progress of pre-synthesizing a book's whole voice track into local cache. */
 data class VoicePrepProgress(
@@ -68,25 +64,9 @@ data class AudioBookUiState(
     val storagePath: String = "",
     /** 播放页是否展示「当前朗读句」。 */
     val showSentence: Boolean = true,
-    /** 每日阅读目标（分钟）。 */
-    val dailyGoalMinutes: Int = 30,
-    /** 一年读书计划：今年计划读完的本数。 */
-    val yearPlanBooks: Int = 24,
-    /** 收听时长 / 连续天数 / 读完书统计。 */
-    val stats: ReadingStatsSnapshot = ReadingStatsSnapshot(),
     /** 上次中断的章节 / 句子（详情页「继续朗读」用）。 */
     val savedChapterIndex: Int = 0,
     val savedSentenceIndex: Int = 0,
-    /** 已订阅的 RSS 源 id。 */
-    val rssSubscriptions: List<String> = emptyList(),
-    /** 正在查看文章列表的订阅源；null = 显示订阅总览。 */
-    val rssFeed: RssFeed? = null,
-    val rssArticles: List<RssArticle> = emptyList(),
-    val rssLoading: Boolean = false,
-    /** 正在抓取文章全文（RSS 里通常只有摘要）。 */
-    val rssPreparing: Boolean = false,
-    /** 订阅文章播放器（与图书播放完全独立）。 */
-    val rssPlayer: RssPlayerCenter.Status = RssPlayerCenter.Status(),
 ) {
     val currentBook: Audiobook? get() = books.firstOrNull { it.id == currentBookId }
     val currentChapter: Chapter? get() = currentBook?.chapters?.getOrNull(chapterIndex)
@@ -94,14 +74,4 @@ data class AudioBookUiState(
 
     /** Whether another market page can be fetched. */
     val marketHasMore: Boolean get() = marketPage >= 0 && marketPage + 1 < marketTotalPages
-
-    /** 今日阅读目标完成度 0..1。 */
-    val dailyGoalProgress: Float
-        get() = if (dailyGoalMinutes <= 0) 0f
-        else (stats.todaySeconds.toFloat() / (dailyGoalMinutes * 60f)).coerceIn(0f, 1f)
-
-    /** 年度计划完成度 0..1。 */
-    val yearPlanProgress: Float
-        get() = if (yearPlanBooks <= 0) 0f
-        else (stats.finishedThisYear.toFloat() / yearPlanBooks).coerceIn(0f, 1f)
 }

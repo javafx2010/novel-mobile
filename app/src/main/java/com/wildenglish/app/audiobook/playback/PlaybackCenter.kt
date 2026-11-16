@@ -4,13 +4,11 @@ import android.app.Application
 import android.content.Intent
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.AudiobookLibrary
-import com.wildenglish.app.audiobook.data.ReadingStats
 import com.wildenglish.app.audiobook.data.loadChapterSentences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -92,7 +90,6 @@ object PlaybackCenter {
                 _snapshot.update { it.copy(isPlaying = isPlaying) }
                 if (!isPlaying) {
                     persistProgress()
-                    ReadingStats.flush()
                 }
                 publish()
             }
@@ -108,14 +105,6 @@ object PlaybackCenter {
         if (app != null) return
         app = application
         library = AudiobookLibrary(application)
-        ReadingStats.init(application)
-        // 收听时长统计：播放中每秒累计一次（写入按天聚合、内部节流）。
-        scope.launch {
-            while (true) {
-                delay(1000L)
-                if (_snapshot.value.isPlaying) ReadingStats.addSeconds(1L)
-            }
-        }
         PlaybackSession.init(application)
         // 冷启动恢复上次的收听位置（只装载不自动播放）。
         restoreLastSession()
@@ -300,8 +289,7 @@ object PlaybackCenter {
         if (next < book.chapters.size) {
             startChapter(book, next, 0)
         } else {
-            // 最后一章播完 = 这本书听完了，记入阅读成就与年度计划。
-            ReadingStats.markFinished(book.id)
+            // 最后一章播完：停止播放。
             _snapshot.update { it.copy(isPlaying = false) }
             persistProgress()
             publish()

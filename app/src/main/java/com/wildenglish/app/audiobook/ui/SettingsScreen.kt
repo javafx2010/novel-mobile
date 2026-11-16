@@ -154,27 +154,6 @@ fun SettingsScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 Spacer(Modifier.height(8.dp))
                 HorizontalDivider(Modifier.padding(horizontal = 20.dp))
                 SectionTitle(
-                    title = "阅读目标",
-                    hint = "每日收听目标与一年读书计划，用于统计页的进度和成就。",
-                )
-                StepperRow(
-                    label = "每日阅读目标",
-                    value = "${state.dailyGoalMinutes} 分钟",
-                    onMinus = { vm.setDailyGoalMinutes(state.dailyGoalMinutes - 5) },
-                    onPlus = { vm.setDailyGoalMinutes(state.dailyGoalMinutes + 5) },
-                )
-                StepperRow(
-                    label = "一年读完本数",
-                    value = "${state.yearPlanBooks} 本",
-                    onMinus = { vm.setYearPlanBooks(state.yearPlanBooks - 1) },
-                    onPlus = { vm.setYearPlanBooks(state.yearPlanBooks + 1) },
-                )
-            }
-
-            item {
-                Spacer(Modifier.height(8.dp))
-                HorizontalDivider(Modifier.padding(horizontal = 20.dp))
-                SectionTitle(
                     title = "播放页",
                     hint = "控制播放页（有声书界面）显示的内容。",
                 )
@@ -227,30 +206,6 @@ private fun SectionTitle(title: String, hint: String) {
     }
 }
 
-@Composable
-private fun StepperRow(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            modifier = Modifier.weight(1f),
-            fontSize = 15.sp,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        TextButton(onClick = onMinus) { Text("－") }
-        Text(
-            value,
-            fontSize = 15.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-        TextButton(onClick = onPlus) { Text("＋") }
-    }
-}
 
 @Composable
 private fun VoiceRow(voice: VoiceConfig, selected: Boolean, onClick: () -> Unit) {

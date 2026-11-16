@@ -13,18 +13,10 @@ import com.wildenglish.app.audiobook.data.ImportResult
 import com.wildenglish.app.audiobook.data.MarketApi
 import com.wildenglish.app.audiobook.data.MarketItem
 import com.wildenglish.app.audiobook.data.MarketSyncStore
-import com.wildenglish.app.audiobook.data.ReadingStats
-import com.wildenglish.app.audiobook.data.RssApi
-import com.wildenglish.app.audiobook.data.RssArticle
-import com.wildenglish.app.audiobook.data.RssFeed
-import com.wildenglish.app.audiobook.data.RssReader
-import com.wildenglish.app.audiobook.data.RssStore
 import com.wildenglish.app.audiobook.data.VoiceCache
 import com.wildenglish.app.audiobook.data.VoiceStorage
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
-import com.wildenglish.app.audiobook.data.loadChapterSentences
 import com.wildenglish.app.audiobook.playback.PlaybackCenter
-import com.wildenglish.app.audiobook.playback.RssPlayerCenter
 import com.wildenglish.app.audiobook.playback.VoicePrepCenter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -73,13 +65,9 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /** 非首屏关键的初始化：设置 / 统计 / 订阅 / 播放恢复 / 各类 Flow 收集 / 市场同步。 */
+    /** 非首屏关键的初始化：设置 / 播放恢复 / 各类 Flow 收集 / 市场同步。 */
     private fun initAfterFirstFrame() {
         AppSettings.init(getApplication())
-        ReadingStats.init(getApplication())
-        _state.update {
-            it.copy(rssSubscriptions = RssStore.subscriptions(getApplication()).sorted())
-        }
         // 音色与配音目录属于全局设置，改完界面立即反映（并用于“设置”页展示）。
         viewModelScope.launch {
             AppSettings.state.collect { settings ->
@@ -91,20 +79,9 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                         customTreeUri = settings.customTreeUri,
                         storagePath = path,
                         showSentence = settings.showSentence,
-                        dailyGoalMinutes = settings.dailyGoalMinutes,
-                        yearPlanBooks = settings.yearPlanBooks,
                     )
                 }
             }
-        }
-        // 收听时长 / 连续天数 / 读完本数。
-        viewModelScope.launch {
-            ReadingStats.state.collect { stats -> _state.update { it.copy(stats = stats) } }
-        }
-        // 订阅文章的独立播放器状态。
-        RssPlayerCenter.init(getApplication())
-        viewModelScope.launch {
-            RssPlayerCenter.state.collect { player -> _state.update { it.copy(rssPlayer = player) } }
         }
         // 配音文件写入失败（SD 卡不可写等）直接提示用户。
         viewModelScope.launch {
@@ -521,8 +498,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     /** Loads a chapter's sentences and starts reading it in [screen]. */
     private fun startChapter(book: Audiobook, index: Int, screen: Screen, startSentence: Int = -1) {
         if (book.chapters.getOrNull(index) == null) return
-        // 电子书开始朗读时停掉订阅文章的独立播放，避免两路声音叠在一起。
-        RssPlayerCenter.pause()
         _state.update {
             it.copy(
                 screen = screen,
@@ -571,127 +546,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         if (_state.value.hasActivePlayer) _state.update { it.copy(screen = Screen.PLAYER) }
     }
 
-    // ---- 阅读统计 / 目标 / 成就 ----
-
-    fun openStats() = _state.update { it.copy(screen = Screen.STATS, error = null) }
-
-    fun setDailyGoalMinutes(minutes: Int) = AppSettings.setDailyGoalMinutes(minutes)
-
-    fun setYearPlanBooks(books: Int) = AppSettings.setYearPlanBooks(books)
-
-    // ---- RSS 订阅 ----
-
-    private var rssJob: Job? = null
-
-    fun openRss() {
-        _state.update {
-            it.copy(
-                screen = Screen.RSS,
-                rssFeed = null,
-                rssArticles = emptyList(),
-                rssLoading = false,
-                error = null,
-                rssSubscriptions = RssStore.subscriptions(getApplication()).sorted(),
-            )
-        }
-    }
-
-    /** 「常用 RSS」的一键订阅 / 取消订阅。 */
-    fun toggleRssSubscription(feed: RssFeed) {
-        val subscribed = feed.id in _state.value.rssSubscriptions
-        RssStore.setSubscribed(getApplication(), feed.id, !subscribed)
-        _state.update {
-            val ids =
-                if (subscribed) it.rssSubscriptions - feed.id else it.rssSubscriptions + feed.id
-            it.copy(rssSubscriptions = ids.sorted())
-        }
-        if (subscribed && _state.value.rssFeed?.id == feed.id) closeRssFeed()
-    }
-
-    fun openRssFeed(feed: RssFeed) {
-        _state.update {
-            it.copy(rssFeed = feed, rssArticles = emptyList(), rssLoading = true, error = null)
-        }
-        loadRssFeed(feed)
-    }
-
-    fun refreshRssFeed() {
-        _state.value.rssFeed?.let { loadRssFeed(it) }
-    }
-
-    fun closeRssFeed() {
-        rssJob?.cancel()
-        _state.update { it.copy(rssFeed = null, rssArticles = emptyList(), rssLoading = false) }
-    }
-
-    private fun loadRssFeed(feed: RssFeed) {
-        rssJob?.cancel()
-        rssJob = viewModelScope.launch {
-            _state.update { it.copy(rssLoading = true, error = null) }
-            try {
-                val articles = withContext(Dispatchers.IO) { RssApi.fetch(feed) }
-                _state.update { it.copy(rssLoading = false, rssArticles = articles) }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.update {
-                    it.copy(rssLoading = false, error = e.message ?: "订阅源加载失败")
-                }
-            }
-        }
-    }
-
-    /** 点一篇文章：转成临时书，交给订阅文章专属播放器（不复用图书播放）。 */
-    fun readArticle(article: RssArticle) {
-        // 文章开始播放前暂停电子书，避免两路声音同时输出。
-        PlaybackCenter.pause()
-        viewModelScope.launch {
-            _state.update { it.copy(rssPreparing = true, error = null) }
-            val prepared = withContext(Dispatchers.IO) {
-                // 订阅里通常只有摘要：正文过短且有链接时，抓网页正文。
-                val fullText = if (article.text.length < 600 && article.link != null) {
-                    RssApi.fetchFullText(article.link)
-                } else {
-                    null
-                }
-                val content = fullText ?: article.text
-                if (content.isBlank()) return@withContext null
-                val withText = article.copy(
-                    text = content,
-                    summary = article.summary.ifBlank { content.take(160) },
-                )
-                val book = RssReader.prepare(getApplication(), withText)
-                    ?: return@withContext null
-                RssReader.prune(getApplication())
-                val chapter = book.chapters.firstOrNull() ?: return@withContext null
-                val sentences = loadChapterSentences(chapter)
-                if (sentences.isEmpty()) null else Triple(withText, book, sentences)
-            }
-            _state.update { it.copy(rssPreparing = false) }
-            if (prepared == null) {
-                _state.update { it.copy(error = "这篇文章没有可朗读的正文") }
-                return@launch
-            }
-            RssPlayerCenter.play(prepared.first, prepared.third, prepared.second)
-            _state.update { it.copy(screen = Screen.RSS_PLAYER, error = null) }
-        }
-    }
-
-    fun rssTogglePlayPause() = RssPlayerCenter.togglePlayPause()
-
-    fun rssNext() = RssPlayerCenter.next()
-
-    fun rssPrevious() = RssPlayerCenter.previous()
-
-    fun rssSeek(index: Int) = RssPlayerCenter.seek(index)
-
-    fun rssSetSpeed(speed: Float) = RssPlayerCenter.setSpeed(speed)
-
-    /** 退出文章播放页：停掉独立朗读器，回到文章列表。 */
-    fun closeRssPlayer() {
-        RssPlayerCenter.stop()
-        _state.update { it.copy(screen = Screen.RSS, error = null) }
-    }
 
     // ---- Playback controls ----
 
@@ -765,23 +619,12 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             }
             Screen.MARKET -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.SETTINGS -> _state.update { it.copy(screen = Screen.LIBRARY) }
-            Screen.STATS -> _state.update { it.copy(screen = Screen.LIBRARY) }
-            Screen.RSS -> {
-                if (_state.value.rssFeed != null) {
-                    closeRssFeed()
-                } else {
-                    _state.update { it.copy(screen = Screen.LIBRARY) }
-                }
-            }
-
-            Screen.RSS_PLAYER -> closeRssPlayer()
             Screen.LIBRARY -> Unit
         }
     }
 
     fun dismissError() {
         PlaybackCenter.dismissError()
-        RssPlayerCenter.dismissError()
         VoiceCache.dismissError()
         _state.update { it.copy(error = null) }
     }
