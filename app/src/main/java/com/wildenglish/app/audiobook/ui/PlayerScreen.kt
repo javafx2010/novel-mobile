@@ -50,7 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -64,7 +63,6 @@ import com.wildenglish.app.ui.theme.GlassBarShape
 import com.wildenglish.app.ui.theme.GlassIconButton
 import com.wildenglish.app.ui.theme.GlassPanel
 import com.wildenglish.app.ui.theme.GlassTextButton
-import com.wildenglish.app.ui.theme.liquidBlur
 import kotlin.math.roundToInt
 
 private val SPEEDS = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
@@ -115,10 +113,7 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 bitmap = cover,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { scaleX = 1.06f; scaleY = 1.06f }
-                    .liquidBlur(16.dp),
+                modifier = Modifier.fillMaxSize(),
             )
             Box(
                 Modifier
@@ -126,9 +121,9 @@ fun PlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.Black.copy(alpha = 0.34f),
-                                Color.Black.copy(alpha = 0.52f),
-                                Color.Black.copy(alpha = 0.86f),
+                                Color.Black.copy(alpha = 0.55f),
+                                Color.Black.copy(alpha = 0.7f),
+                                Color.Black.copy(alpha = 0.92f),
                             )
                         )
                     )

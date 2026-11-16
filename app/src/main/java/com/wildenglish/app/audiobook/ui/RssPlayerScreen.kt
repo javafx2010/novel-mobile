@@ -47,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -63,7 +62,6 @@ import com.wildenglish.app.ui.theme.GlassBarShape
 import com.wildenglish.app.ui.theme.GlassIconButton
 import com.wildenglish.app.ui.theme.GlassPanel
 import com.wildenglish.app.ui.theme.GlassTextButton
-import com.wildenglish.app.ui.theme.liquidBlur
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -114,10 +112,7 @@ fun RssPlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             painter = painterResource(R.drawable.cover_default),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { scaleX = 1.08f; scaleY = 1.08f }
-                .liquidBlur(22.dp),
+            modifier = Modifier.fillMaxSize(),
         )
         Box(
             Modifier
@@ -125,9 +120,9 @@ fun RssPlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color.Black.copy(alpha = 0.46f),
-                            Color.Black.copy(alpha = 0.58f),
-                            Color.Black.copy(alpha = 0.86f),
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Black.copy(alpha = 0.74f),
+                            Color.Black.copy(alpha = 0.92f),
                         )
                     )
                 )

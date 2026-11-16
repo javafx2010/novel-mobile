@@ -268,10 +268,17 @@ object VoicePrepCenter {
         _status.value =
             Status(isWorking = true, activeBookTitle = book.title, pendingCount = pendingCount())
         val result = try {
+            var lastProgressEmit = 0L
             generator.prepare(book) { done, total ->
-                _progress.value = _progress.value +
-                        (bookId to VoicePrepProgress(done, total, 0, true))
-                _status.value = Status(true, book.title, done, total, pendingCount())
+                // 节流：每句都更新会让整个 UI 树高频重组（统计页/书城持续 GC 卡顿）。
+                // 进度展示 500ms 刷新一次足够。
+                val now = System.currentTimeMillis()
+                if (now - lastProgressEmit >= 500L || done == total) {
+                    lastProgressEmit = now
+                    _progress.value = _progress.value +
+                            (bookId to VoicePrepProgress(done, total, 0, true))
+                    _status.value = Status(true, book.title, done, total, pendingCount())
+                }
             }
         } catch (e: CancellationException) {
             throw e
