@@ -457,6 +457,13 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun openSettings() = _state.update { it.copy(screen = Screen.SETTINGS, error = null) }
 
+    fun openVoice() = _state.update { it.copy(screen = Screen.VOICE, error = null) }
+
+    fun openStorage() = _state.update { it.copy(screen = Screen.STORAGE, error = null) }
+
+    fun openPlaybackSettings() =
+        _state.update { it.copy(screen = Screen.PLAYBACK, error = null) }
+
     /**
      * 换朗读音色。整本书统一用这个音色，已缓存的音频是按旧音色生成的，
      * 因此让后台按新音色重新生成（旧文件不再命中）。
@@ -625,6 +632,9 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             }
             Screen.MARKET -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.SETTINGS -> _state.update { it.copy(screen = Screen.LIBRARY) }
+            Screen.VOICE -> _state.update { it.copy(screen = Screen.SETTINGS) }
+            Screen.STORAGE -> _state.update { it.copy(screen = Screen.SETTINGS) }
+            Screen.PLAYBACK -> _state.update { it.copy(screen = Screen.SETTINGS) }
             Screen.LIBRARY -> Unit
         }
     }

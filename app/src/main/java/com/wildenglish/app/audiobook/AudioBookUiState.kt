@@ -7,7 +7,7 @@ import com.wildenglish.app.audiobook.data.MarketItem
 import com.wildenglish.app.audiobook.data.VoiceConfig
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
 
-enum class Screen { LIBRARY, DETAIL, PLAYER, READER, MARKET, SETTINGS }
+enum class Screen { LIBRARY, DETAIL, PLAYER, READER, MARKET, SETTINGS, VOICE, STORAGE, PLAYBACK }
 
 /** Progress of pre-synthesizing a book's whole voice track into local cache. */
 data class VoicePrepProgress(
