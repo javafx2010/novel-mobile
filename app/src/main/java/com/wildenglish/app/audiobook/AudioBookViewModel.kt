@@ -260,8 +260,12 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         // 供详情页目录 / 播放使用，不阻塞切屏。
         if (book.chapters.isEmpty()) {
             viewModelScope.launch {
+                // 用轻量解析（只从 manifest 取元数据，不做逐章文件校验）补齐章节标题。
+                // 完整 parse 对 465 章要做上千次文件 stat，实测 3 秒，会卡详情页。
                 val full = withContext(Dispatchers.IO) {
-                    runCatching { com.wildenglish.app.audiobook.data.ManifestParser.parse(book.dir) }.getOrNull()
+                    runCatching {
+                        com.wildenglish.app.audiobook.data.ManifestParser.parseLight(book.dir)
+                    }.getOrNull()
                 }
                 if (full != null) {
                     _state.update { ui ->
