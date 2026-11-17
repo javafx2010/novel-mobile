@@ -15,6 +15,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -168,6 +170,15 @@ private fun screenTransition(from: Screen, to: Screen): ContentTransform {
     val fadeInSpec = tween<Float>(durationMillis = 260)
     val fadeOutSpec = tween<Float>(durationMillis = 220)
     return when {
+        // 选碟页 → 播放页：选中的碟片推近、放大成整张唱片，两页视觉衔接。
+        from == Screen.DETAIL && to == Screen.PLAYER ->
+            (fadeIn(animationSpec = fadeInSpec) +
+                    scaleIn(initialScale = 0.86f, animationSpec = tween<Float>(340)))
+                .togetherWith(
+                    fadeOut(animationSpec = fadeOutSpec) +
+                            scaleOut(targetScale = 1.1f, animationSpec = tween<Float>(340))
+                )
+
         // Presenting / dismissing the audiobook player (cover view).
         to == Screen.PLAYER ->
             (slideInVertically(animationSpec = slideSpec) { it } + fadeIn(animationSpec = fadeInSpec))

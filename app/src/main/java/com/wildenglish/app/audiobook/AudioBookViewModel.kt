@@ -89,11 +89,18 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             PlaybackCenter.snapshot.collect { snap ->
                 _state.update { ui ->
+                    // 用户已进入选碟页/播放页时，书名由 openBook 决定，不能被
+                    // 冷启动恢复的播放会话或正在播放的其它书覆盖。
+                    val followPlayback = snap.book != null && ui.screen != Screen.DETAIL
                     ui.copy(
-                        currentBookId = snap.book?.id ?: ui.currentBookId,
-                        chapterIndex = if (snap.book != null) snap.chapterIndex else ui.chapterIndex,
-                        sentences = if (snap.book != null) snap.sentences else ui.sentences,
-                        currentSentenceIndex = if (snap.book != null) {
+                        currentBookId = if (followPlayback && ui.screen == Screen.LIBRARY) {
+                            snap.book?.id ?: ui.currentBookId
+                        } else {
+                            ui.currentBookId
+                        },
+                        chapterIndex = if (followPlayback) snap.chapterIndex else ui.chapterIndex,
+                        sentences = if (followPlayback) snap.sentences else ui.sentences,
+                        currentSentenceIndex = if (followPlayback) {
                             snap.currentSentenceIndex
                         } else {
                             ui.currentSentenceIndex
@@ -237,40 +244,63 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         val chapter = savedChapter.coerceAtLeast(0)
         _state.update {
             it.copy(
-                screen = Screen.DETAIL,
                 currentBookId = id,
                 chapterIndex = chapter,
                 // 上次听到第几句 —— 详情页据此显示「继续朗读」并从该句接着读。
-                savedChapterIndex = savedChapter.coerceAtLeast(0),
+                savedChapterIndex = chapter,
                 savedSentenceIndex = library.sentenceOf(id, chapter),
                 savedPositionMs = library.positionOf(id, chapter),
-                // 首页排序不在点击瞬间改变；等从详情返回首页时再按最近访问重排。
                 sentences = emptyList(),
                 currentSentenceIndex = -1,
                 error = null,
             )
         }
-        // 首页用的是 DB 轻量书（chapters 为空）；后台做一次完整解析替换，
-        // 供详情页目录 / 播放使用，不阻塞切屏。
-        if (book.chapters.isEmpty()) {
-            viewModelScope.launch {
-                // 用轻量解析（只从 manifest 取元数据，不做逐章文件校验）补齐章节标题。
-                // 完整 parse 对 465 章要做上千次文件 stat，实测 3 秒，会卡详情页。
-                val full = withContext(Dispatchers.IO) {
-                    runCatching {
-                        com.wildenglish.app.audiobook.data.ManifestParser.parseLight(book.dir)
-                    }.getOrNull()
+        // 章节已解析时可以直接判断：MP3 书跳过选碟页，直接进播放器。
+        if (book.chapters.isNotEmpty()) {
+            if (book.audioMode) {
+                startChapter(book, chapter.coerceIn(0, book.chapters.lastIndex), Screen.PLAYER, -1)
+            } else {
+                _state.update { it.copy(screen = Screen.DETAIL) }
+            }
+            return
+        }
+        // 首页用的是 DB 轻量书（chapters 为空）：先异步补齐再决定去向，
+        // 这样 MP3 书不会先闪一帧选碟页。
+        viewModelScope.launch {
+            // 用轻量解析（只从 manifest 取元数据，不做逐章文件校验）补齐章节标题。
+            // 完整 parse 对 465 章要做上千次文件 stat，实测 3 秒，会卡详情页。
+            val full = withContext(Dispatchers.IO) {
+                runCatching {
+                    com.wildenglish.app.audiobook.data.ManifestParser.parseLight(book.dir)
+                }.getOrNull()
+            }
+            val resolved = full?.let { f ->
+                // 轻量解析若没找到封面，保留原书封面，避免详情/首页封面消失。
+                if (f.coverFile == null && book.coverFile != null) {
+                    f.copy(coverFile = book.coverFile)
+                } else {
+                    f
                 }
-                if (full != null) {
-                    // 轻量解析若没找到封面，保留原书封面，避免详情/首页封面消失。
-                    val merged = if (full.coverFile == null && book.coverFile != null) {
-                        full.copy(coverFile = book.coverFile)
-                    } else {
-                        full
-                    }
-                    _state.update { ui ->
-                        ui.copy(books = ui.books.map { if (it.id == id) merged else it })
-                    }
+            }
+            if (resolved != null) {
+                _state.update { ui ->
+                    ui.copy(
+                        books = ui.books.map { if (it.id == id) resolved else it },
+                        currentBookId = id,
+                    )
+                }
+            }
+            val target = resolved ?: book
+            if (target.audioMode && target.chapters.isNotEmpty()) {
+                startChapter(
+                    target,
+                    chapter.coerceIn(0, target.chapters.lastIndex),
+                    Screen.PLAYER,
+                    -1,
+                )
+            } else {
+                _state.update {
+                    it.copy(screen = Screen.DETAIL, currentBookId = id)
                 }
             }
         }
@@ -621,7 +651,14 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun goBack() {
         when (_state.value.screen) {
-            Screen.PLAYER -> _state.update { it.copy(screen = Screen.DETAIL) }
+            // MP3 书跳过了选碟页，返回时也应直接回书架，而不是冒出选碟页。
+            Screen.PLAYER -> _state.update {
+                val audio = it.currentBook?.audioMode == true
+                it.copy(
+                    screen = if (audio) Screen.LIBRARY else Screen.DETAIL,
+                    books = if (audio) library.sortByRecentAccess(it.books) else it.books,
+                )
+            }
             // 从详情返回首页时才按最近访问重排（点击瞬间不改首页顺序）。
             Screen.DETAIL -> _state.update {
                 it.copy(screen = Screen.LIBRARY, books = library.sortByRecentAccess(it.books))
