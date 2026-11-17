@@ -109,9 +109,12 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
 
     val darkChrome = isSystemInDarkTheme()
     Box(Modifier.fillMaxSize()) {
-        val darkScreen = state.screen == Screen.LIBRARY ||
-                state.screen == Screen.DETAIL ||
-                state.screen == Screen.PLAYER
+        val darkScreen = when (state.screen) {
+            Screen.LIBRARY, Screen.DETAIL, Screen.PLAYER,
+            Screen.SETTINGS, Screen.VOICE, Screen.STORAGE, Screen.PLAYBACK -> true
+
+            else -> false // 书城等仍用浅色玻璃背景
+        }
         if (darkScreen) {
             Box(Modifier
                 .fillMaxSize()
