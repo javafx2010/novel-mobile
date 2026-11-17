@@ -256,7 +256,7 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             GramophoneControls(
                 isPlaying = state.isPlaying,
                 isBuffering = state.isBuffering,
-                skipLabel = if (audioMode) "15" else "句",
+                skipLabel = if (audioMode) "15" else "",
                 onPreviousChapter = vm::previousChapter,
                 onNextChapter = vm::nextChapter,
                 onRewind = { if (audioMode) vm.seekBy(-15_000) else vm.skipSentences(-1) },
@@ -840,12 +840,14 @@ private fun SkipButton(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, contentDescription = null, tint = Cream, modifier = Modifier.size(22.dp))
-        Text(
-            label,
-            fontSize = 10.sp,
-            letterSpacing = 0.5.sp,
-            color = Cream.copy(alpha = 0.7f),
-        )
+        if (label.isNotEmpty()) {
+            Text(
+                label,
+                fontSize = 10.sp,
+                letterSpacing = 0.5.sp,
+                color = Cream.copy(alpha = 0.7f),
+            )
+        }
     }
 }
 
