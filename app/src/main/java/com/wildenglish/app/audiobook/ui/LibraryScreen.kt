@@ -25,17 +25,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
@@ -189,15 +185,6 @@ fun LibraryScreen(
                     horizontalArrangement = Arrangement.spacedBy(18.dp),
                     verticalArrangement = Arrangement.spacedBy(22.dp),
                 ) {
-                    if (state.hasActivePlayer && state.currentBook != null) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            NowPlayingShelf(
-                                state = state,
-                                onOpen = vm::openPlayer,
-                                onToggle = vm::togglePlayPause,
-                            )
-                        }
-                    }
                     itemsIndexed(state.books, key = { _, book -> book.id }) { index, book ->
                         SleeveTile(
                             book = book,
@@ -300,76 +287,6 @@ private fun BrassCircleButton(
             tint = LibBrassLight,
             modifier = Modifier.size(22.dp)
         )
-    }
-}
-
-/** "Continue listening" bar — a sleeve thumbnail, not a record. */
-@Composable
-private fun NowPlayingShelf(
-    state: AudioBookUiState,
-    onOpen: () -> Unit,
-    onToggle: () -> Unit,
-) {
-    val book = state.currentBook ?: return
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(Brush.horizontalGradient(listOf(Color(0xFF2A2119), Color(0xFF15100C))))
-            .border(1.dp, LibBrass.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BookCover(
-            coverFile = book.coverFile,
-            title = book.title,
-            modifier = Modifier
-                .width(52.dp)
-                .aspectRatio(0.72f)
-                .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, LibBrass.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
-        )
-        Spacer(Modifier.size(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                "继续收听",
-                fontSize = 11.sp,
-                letterSpacing = 2.sp,
-                color = LibBrass,
-            )
-            Text(
-                book.title,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
-                color = LibCream,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                state.currentChapter?.title ?: "",
-                fontSize = 12.sp,
-                color = LibCream.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Box(
-            Modifier
-                .size(46.dp)
-                .clip(CircleShape)
-                .background(Brush.radialGradient(listOf(LibBrassLight, LibBrass)))
-                .clickable(onClick = onToggle),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = "播放/暂停",
-                tint = LibInk,
-                modifier = Modifier.size(23.dp),
-            )
-        }
     }
 }
 
