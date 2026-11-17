@@ -22,25 +22,27 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -50,8 +52,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,13 +66,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
 import com.wildenglish.app.audiobook.Screen
 import com.wildenglish.app.audiobook.playback.VoicePrepCenter
-import com.wildenglish.app.ui.theme.GlassBarShape
-import com.wildenglish.app.ui.theme.GlassPanel
 import com.wildenglish.app.ui.theme.LiquidGlassBackdrop
+
+private val MiniBrass = Color(0xFFC79A56)
+private val MiniBrassLight = Color(0xFFF0D8A8)
+private val MiniCream = Color(0xFFF4E9D4)
+private val MiniInk = Color(0xFF17120C)
 
 @Composable
 fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
@@ -99,12 +109,15 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
 
     val darkChrome = isSystemInDarkTheme()
     Box(Modifier.fillMaxSize()) {
-        if (state.screen != Screen.PLAYER) {
-            LiquidGlassBackdrop(Modifier.fillMaxSize(), dark = darkChrome)
-        } else {
+        val darkScreen = state.screen == Screen.LIBRARY ||
+                state.screen == Screen.DETAIL ||
+                state.screen == Screen.PLAYER
+        if (darkScreen) {
             Box(Modifier
                 .fillMaxSize()
-                .background(Color.Black))
+                .background(Color(0xFF0B0908)))
+        } else {
+            LiquidGlassBackdrop(Modifier.fillMaxSize(), dark = darkChrome)
         }
         Column(Modifier
             .fillMaxSize()
@@ -220,51 +233,79 @@ private fun MiniPlayer(
     onToggle: () -> Unit,
 ) {
     val book = state.currentBook ?: return
-    GlassPanel(
-        shape = GlassBarShape,
-        dark = isSystemInDarkTheme(),
+    val cover = rememberCover(book.coverFile)
+    Row(
         modifier = Modifier
             .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
             .fillMaxWidth()
-            .clickable(onClick = onOpen),
+            .clip(RoundedCornerShape(50))
+            .background(Brush.horizontalGradient(listOf(Color(0xFF2A2119), Color(0xFF14100C))))
+            .border(1.dp, MiniBrass.copy(alpha = 0.38f), RoundedCornerShape(50))
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(Brush.radialGradient(listOf(Color(0xFF33291F), Color(0xFF0A0806))))
+                .border(1.dp, MiniBrass.copy(alpha = 0.5f), CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
-            BookCover(
-                coverFile = book.coverFile,
-                title = book.title,
-                modifier = Modifier
-                    .width(40.dp)
-                    .aspectRatio(0.72f),
+            Box(Modifier
+                .size(20.dp)
+                .clip(CircleShape)) {
+                if (cover != null) {
+                    Image(
+                        bitmap = cover,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(R.drawable.cover_default),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                book.title,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                color = MiniCream,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    book.title,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    state.currentChapter?.title ?: "",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            IconButton(onClick = onToggle) {
-                Icon(
-                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = "播放/暂停",
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
+            Text(
+                state.currentChapter?.title ?: "",
+                fontSize = 12.sp,
+                color = MiniBrassLight.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Box(
+            Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(Brush.radialGradient(listOf(MiniBrassLight, MiniBrass)))
+                .clickable(onClick = onToggle),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = "播放/暂停",
+                tint = MiniInk,
+                modifier = Modifier.size(22.dp),
+            )
         }
     }
 }
