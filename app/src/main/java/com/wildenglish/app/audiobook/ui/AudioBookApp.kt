@@ -122,7 +122,6 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
                         )
                         Screen.DETAIL -> BookDetailScreen(state, vm)
                         Screen.PLAYER -> PlayerScreen(state, vm)
-                        Screen.READER -> ReaderScreen(state, vm)
                         Screen.MARKET -> MarketScreen(state, vm)
                         Screen.SETTINGS -> SettingsScreen(state, vm)
                         Screen.VOICE -> VoiceScreen(state, vm)
@@ -170,14 +169,14 @@ private fun screenTransition(from: Screen, to: Screen): ContentTransform {
     val fadeOutSpec = tween<Float>(durationMillis = 220)
     return when {
         // Presenting / dismissing the audiobook player (cover view).
-        to == Screen.PLAYER && from != Screen.READER ->
+        to == Screen.PLAYER ->
             (slideInVertically(animationSpec = slideSpec) { it } + fadeIn(animationSpec = fadeInSpec))
                 .togetherWith(
                     slideOutVertically(animationSpec = slideSpec) { -it / 6 } +
                         fadeOut(animationSpec = fadeOutSpec)
                 )
 
-        from == Screen.PLAYER && to != Screen.READER ->
+        from == Screen.PLAYER ->
             (fadeIn(animationSpec = fadeInSpec) +
                 slideInVertically(animationSpec = slideSpec) { -it / 6 })
                 .togetherWith(

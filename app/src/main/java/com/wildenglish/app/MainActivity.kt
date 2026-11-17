@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.IntentCompat
 import com.wildenglish.app.audiobook.AudioBookViewModel
+import com.wildenglish.app.audiobook.data.AudioFolderImporter
 import com.wildenglish.app.audiobook.playback.PlaybackCenter
 import com.wildenglish.app.audiobook.playback.VoicePrepCenter
 import com.wildenglish.app.audiobook.ui.AudioBookApp
@@ -57,22 +58,42 @@ class MainActivity : ComponentActivity() {
     /**
      * 其他应用通过「打开方式」或「分享」把文件递进来时，直接导入书架。
      *
-     * 接受 EPUB（也兼容本应用的 .jpd）：按 MIME 与文件名判断，其他类型静默忽略，
-     * 避免 octet-stream 过滤把无关文件也当成书。
+     * 接受 EPUB、.jpd，以及单个 / 多个 MP3（M4A/FLAC…）音频文件；按 MIME 与文件名判断，
+     * 其他类型静默忽略，避免 octet-stream 过滤把无关文件也当成书。
      */
     private fun handleIncoming(intent: Intent?) {
         if (intent == null) return
-        val uri: Uri = when (intent.action) {
-            Intent.ACTION_VIEW -> intent.data
-            Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(
-                intent, Intent.EXTRA_STREAM, Uri::class.java
+        val action = intent.action
+        val uris: List<Uri> = when (action) {
+            Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+            Intent.ACTION_SEND -> listOfNotNull(
+                IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
             )
 
-            else -> null
-        } ?: return
-        // 「打开方式」是用户明确选择本应用，宽松一些；「分享」只认 epub/jpd。
-        if (!looksLikeBook(uri, intent.type, lenient = intent.action == Intent.ACTION_VIEW)) return
-        viewModel.importPackage(uri)
+            Intent.ACTION_SEND_MULTIPLE -> IntentCompat.getParcelableArrayListExtra(
+                intent, Intent.EXTRA_STREAM, Uri::class.java
+            ).orEmpty()
+
+            else -> emptyList()
+        }
+        if (uris.isEmpty()) return
+        // 「打开方式」是用户明确选择本应用，宽松一些；「分享」只认 epub/jpd/音频。
+        val lenient = action == Intent.ACTION_VIEW
+        val accepted = uris.filter { uri ->
+            looksLikeBook(uri, if (uris.size == 1) intent.type else null, lenient)
+        }
+        if (accepted.isEmpty()) return
+        when {
+            accepted.size == 1 -> viewModel.importPackage(accepted.first())
+            accepted.all { isAudioUri(it) } -> viewModel.importAudioFiles(accepted)
+            // 混合分享（如多个 EPUB）：逐个导入。
+            else -> accepted.forEach { viewModel.importPackage(it) }
+        }
+    }
+
+    private fun isAudioUri(uri: Uri): Boolean {
+        val mime = runCatching { contentResolver.getType(uri) }.getOrNull()
+        return AudioFolderImporter.isAudioFile(displayName(uri) ?: uri.lastPathSegment, mime)
     }
 
     private fun looksLikeBook(uri: Uri, type: String?, lenient: Boolean): Boolean {
@@ -80,6 +101,8 @@ class MainActivity : ComponentActivity() {
         if (mime == "application/epub+zip") return true
         val name = (displayName(uri) ?: uri.lastPathSegment.orEmpty()).lowercase()
         if (name.endsWith(".epub") || name.endsWith(".jpd")) return true
+        // 单个 MP3 / M4A / FLAC…：直接作为一本有声书导入。
+        if (AudioFolderImporter.isAudioFile(name, mime)) return true
         if (!lenient) return false
         return mime == "application/zip" || mime == "application/octet-stream"
     }

@@ -126,17 +126,35 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 20.dp)) {
                     // 有上次的进度就从那里接着读，没有才从第一章开始。
-                    val hasProgress = state.savedChapterIndex > 0 || state.savedSentenceIndex > 0
-                    if (hasProgress) {
+                    val audioMode = book.audioMode
+                    val hasProgress = state.savedChapterIndex > 0 || if (audioMode) {
+                        state.savedPositionMs > 0
+                    } else {
+                        state.savedSentenceIndex > 0
+                    }
+                    val progressLabel = when {
+                        !hasProgress || book.chapters.isEmpty() -> null
+                        audioMode -> "上次听到：第 ${state.savedChapterIndex + 1} 章 · " +
+                                formatTime(state.savedPositionMs)
+
+                        else -> "上次听到：第 ${state.savedChapterIndex + 1} 章 · " +
+                                "第 ${state.savedSentenceIndex + 1} 句"
+                    }
+                    if (progressLabel != null) {
                         Text(
-                            "上次听到：第 ${state.savedChapterIndex + 1} 章 · 第 ${state.savedSentenceIndex + 1} 句",
+                            progressLabel,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 8.dp),
                         )
                     }
                     GlassPrimaryButton(
-                        label = if (hasProgress) "继续朗读" else "开始朗读",
+                        label = when {
+                            hasProgress && audioMode -> "继续播放"
+                            hasProgress -> "继续朗读"
+                            audioMode -> "开始播放"
+                            else -> "开始朗读"
+                        },
                         onClick = { vm.playSaved() },
                         modifier = Modifier.fillMaxWidth(),
                         leading = {

@@ -2,6 +2,7 @@ package com.wildenglish.app.audiobook.data
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -30,6 +31,8 @@ sealed interface ImportResult {
  *  - `.epub` — a standard EPUB ZIP, converted into the internal package layout
  *    (manifest.json + text/NNN.txt + cover.*) by [EpubImporter].
  *  - a plain, unencrypted internal package ZIP (manifest.json at its root).
+ *  - a ZIP of audio files (MP3/M4A/...) with optional `.vtt` / `.srt` subtitles,
+ *    converted on the fly by [AudioFolderImporter].
  *
  * The internal representation is identical for every source, so the rest of the
  * app (parsing, reading, UI) is source-agnostic.
@@ -173,6 +176,8 @@ class AudiobookLibrary(context: Context) {
     }
 
     suspend fun import(uri: Uri): ImportResult = withContext(Dispatchers.IO) {
+        // A raw audio file (picked here or handed over by another app) becomes a book.
+        if (isAudioUri(uri)) return@withContext importAudioFiles(listOf(uri))
         val temp = File(appContext.cacheDir, "import-" + System.currentTimeMillis())
         try {
             if (!temp.mkdirs()) return@withContext ImportResult.Failure("无法创建导入临时目录")
@@ -204,38 +209,115 @@ class AudiobookLibrary(context: Context) {
                 }
             }
             if (prepareError != null) return@withContext ImportResult.Failure(prepareError)
-
-            val validationError = ManifestParser.validate(temp)
-            if (validationError != null) return@withContext ImportResult.Failure(validationError)
-            val parsed = ManifestParser.parse(temp)
-                ?: return@withContext ImportResult.Failure("内容校验失败")
-
-            val id = sanitizeId(parsed.id)
-            val destination = File(libraryRoot, id)
-            libraryRoot.mkdirs()
-            // Audio may live on the SD card (outside the book dir); dropping the
-            // directory alone would leave stale voice files for a re-import.
-            VoiceCache.clearForId(id)
-            if (destination.exists()) destination.deleteRecursively()
-            if (!temp.renameTo(destination)) {
-                temp.copyRecursively(destination, overwrite = true)
-                temp.deleteRecursively()
-            }
-            val book = ManifestParser.parse(destination)
-            if (book == null) {
-                ImportResult.Failure("导入后的校验失败")
-            } else {
-                // 图书信息落库。
-                runCatching { AppDatabase.upsertBook(book) }
-                // 导入时就把封面缩略图生成并落盘；之后书架/详情/播放一直读缓存小图。
-                runCatching { CoverThumbCache.preGenerate(appContext, book.coverFile) }
-                ImportResult.Success(book)
-            }
+            installPackage(temp)
         } catch (e: Exception) {
             ImportResult.Failure(e.message ?: "导入失败")
         } finally {
             if (temp.exists()) temp.deleteRecursively()
         }
+    }
+
+    /**
+     * Imports one or more audio files as **one** audiobook: every file becomes a chapter
+     * (naturally ordered by file name) and the cover is extracted from the first MP3.
+     *
+     * Used by the "打开方式 / 分享" entry points and when raw audio is picked from the
+     * document picker. Sharing a single MP3 produces a one-chapter book.
+     */
+    suspend fun importAudioFiles(uris: List<Uri>): ImportResult = withContext(Dispatchers.IO) {
+        if (uris.isEmpty()) return@withContext ImportResult.Failure("没有可导入的音频文件")
+        val temp = File(appContext.cacheDir, "import-audio-" + System.currentTimeMillis())
+        val staging = File(temp, "_src")
+        try {
+            if (!staging.mkdirs()) return@withContext ImportResult.Failure("无法创建导入临时目录")
+            var copied = 0
+            for ((index, uri) in uris.withIndex()) {
+                val input = runCatching { appContext.contentResolver.openInputStream(uri) }
+                    .getOrNull() ?: continue
+                val target = File(staging, audioFileName(uri, index, staging))
+                input.use { source ->
+                    FileOutputStream(target).use { out -> source.copyTo(out) }
+                }
+                copied++
+            }
+            if (copied == 0) return@withContext ImportResult.Failure("无法读取音频文件")
+            val error = AudioFolderImporter.convert(staging, temp)
+            // Drop the staging folder BEFORE moving temp into the library, otherwise it
+            // would be carried into the book directory by the rename.
+            staging.deleteRecursively()
+            if (error != null) return@withContext ImportResult.Failure(error)
+            installPackage(temp)
+        } catch (e: Exception) {
+            ImportResult.Failure(e.message ?: "导入音频失败")
+        } finally {
+            staging.deleteRecursively()
+            if (temp.exists()) temp.deleteRecursively()
+        }
+    }
+
+    /** Validates the unpacked package in [temp], moves it into the library and loads it. */
+    private fun installPackage(temp: File): ImportResult {
+        // Older audio imports could leave their staging folder inside the package.
+        File(temp, "_src").deleteRecursively()
+        val validationError = ManifestParser.validate(temp)
+        if (validationError != null) return ImportResult.Failure(validationError)
+        val parsed = ManifestParser.parse(temp)
+            ?: return ImportResult.Failure("内容校验失败")
+
+        val id = sanitizeId(parsed.id)
+        val destination = File(libraryRoot, id)
+        libraryRoot.mkdirs()
+        // Audio may live on the SD card (outside the book dir); dropping the
+        // directory alone would leave stale voice files for a re-import.
+        VoiceCache.clearForId(id)
+        if (destination.exists()) destination.deleteRecursively()
+        if (!temp.renameTo(destination)) {
+            temp.copyRecursively(destination, overwrite = true)
+            temp.deleteRecursively()
+        }
+        val book = ManifestParser.parse(destination)?.let { ensureCover(it) }
+            ?: return ImportResult.Failure("导入后的校验失败")
+        // 图书信息落库。
+        runCatching { AppDatabase.upsertBook(book) }
+        // 导入时就把封面缩略图生成并落盘；之后书架/详情/播放一直读缓存小图。
+        runCatching { CoverThumbCache.preGenerate(appContext, book.coverFile) }
+        return ImportResult.Success(book)
+    }
+
+    private fun isAudioUri(uri: Uri): Boolean {
+        val mime = runCatching { appContext.contentResolver.getType(uri) }.getOrNull()
+        return AudioFolderImporter.isAudioFile(displayName(uri), mime)
+    }
+
+    private fun displayName(uri: Uri): String? = runCatching {
+        appContext.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+    }.getOrNull()
+
+    /**
+     * Keeps the provider's display name (so chapters read as the track names) while
+     * stripping path separators and de-duplicating when several files share a name.
+     */
+    private fun audioFileName(uri: Uri, index: Int, dir: File): String {
+        val raw = displayName(uri)?.substringAfterLast('/')?.substringAfterLast('\\')
+        val cleaned = raw?.replace(Regex("[\\\\/:*?\"<>|]"), "_")?.trim()?.trim('.')
+        val name = cleaned?.takeIf { it.isNotBlank() } ?: "audio-${index + 1}"
+        val extension = name.substringAfterLast('.', "").lowercase()
+        val supported = extension in AudioFolderImporter.AUDIO_EXTENSIONS
+        val base = (if (supported) name.substringBeforeLast('.') else name)
+            .ifBlank { "audio-${index + 1}" }
+        val finalExtension = if (supported) extension else "mp3"
+        var candidate = "$base.$finalExtension"
+        var suffix = 2
+        while (File(dir, candidate).exists()) {
+            candidate = "$base (${suffix++}).$finalExtension"
+        }
+        return candidate
     }
 
     /** Turns an unpacked archive in [staging] into the internal layout in [dest]. */
@@ -253,8 +335,26 @@ class AudiobookLibrary(context: Context) {
                 null
             }
 
-            else -> "无法识别的文件格式：请选择 .epub 图书或 .jpd 有声书"
+            else -> if (AudioFolderImporter.looksLikeAudioFolder(staging)) {
+                AudioFolderImporter.convert(staging, dest)
+            } else {
+                "无法识别的文件格式：请选择 .epub 图书、.jpd 有声书或包含 MP3 的音频压缩包"
+            }
         }
+    }
+
+    /**
+     * MP3 audiobooks usually carry their cover inside the audio tags instead of a
+     * separate image. Pull it out on import so the shelf / player / lock screen all
+     * show the album art.
+     */
+    private fun ensureCover(book: Audiobook): Audiobook {
+        if (book.coverFile?.isFile == true) return book
+        val audio = book.chapters.firstNotNullOfOrNull { chapter ->
+            chapter.audioFile?.takeIf { it.isFile }
+        } ?: return book
+        val cover = Mp3Metadata.writeCover(Mp3Metadata.read(audio), book.dir) ?: return book
+        return book.copy(coverFile = cover)
     }
 
     /** EPUBs normally keep container.xml at the archive root, but some are wrapped. */

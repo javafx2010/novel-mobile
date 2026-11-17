@@ -96,6 +96,11 @@ object VoicePrepCenter {
             val pending = ArrayList<String>()
             withContext(Dispatchers.IO) {
                 for (book in books) {
+                    // 音频书直接播放 MP3，不需要也无法进行 Edge TTS 配音。
+                    if (book.audioMode) {
+                        ready.add(book.id)
+                        continue
+                    }
                     // 只读 .ready 标记（O(1)），不再逐句 exists() 扫整本书 —— 那是首屏
                     // 卡顿的主因。文件已齐但标记丢失的情况由后台 VoicePreGenerator
                     // 自己算缺失并补写标记，功能等价且不阻塞启动。

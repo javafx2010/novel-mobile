@@ -31,7 +31,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- 从其他应用「打开方式」接收 EPUB（文件管理器 / 浏览器 / 下载器）。 -->
+            <!-- 从其他应用「打开方式」接收 EPUB / 有声书压缩包 / MP3 音频。 -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -43,15 +43,25 @@
                 <data android:mimeType="application/epub+zip" />
                 <data android:mimeType="application/zip" />
                 <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="audio/*" />
             </intent-filter>
 
-            <!-- 从其他应用「分享」接收 EPUB。 -->
+            <!-- 从其他应用「分享」接收 EPUB / 单个音频文件。 -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
 
                 <data android:mimeType="application/epub+zip" />
                 <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+
+            <!-- 「分享」多个 MP3：合并为一本有声书（每个文件一章）。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="audio/*" />
             </intent-filter>
         </activity>
 

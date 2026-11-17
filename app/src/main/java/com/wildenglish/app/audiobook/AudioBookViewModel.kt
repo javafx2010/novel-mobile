@@ -1,7 +1,6 @@
 package com.wildenglish.app.audiobook
 
 import android.app.Application
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -35,18 +34,8 @@ import java.time.LocalDateTime
 class AudioBookViewModel(application: Application) : AndroidViewModel(application) {
 
     private val library = AudiobookLibrary(application)
-    private val readerPrefs = application.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
 
-    private val _state = MutableStateFlow(
-        AudioBookUiState(
-            readerTheme = ReaderTheme.fromName(
-                readerPrefs.getString(
-                    KEY_READER_THEME,
-                    null
-                )
-            )
-        )
-    )
+    private val _state = MutableStateFlow(AudioBookUiState())
     val state: StateFlow<AudioBookUiState> = _state.asStateFlow()
 
     private var sleepJob: Job? = null
@@ -112,6 +101,9 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                         isPlaying = snap.isPlaying,
                         isBuffering = snap.isBuffering,
                         ttsReady = snap.ttsReady,
+                        audioMode = snap.audioMode,
+                        positionMs = snap.positionMs,
+                        durationMs = snap.durationMs,
                         speed = snap.speed,
                         error = if (snap.error != null || snap.book != null) snap.error else ui.error,
                     )
@@ -148,49 +140,73 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch { importUri(uri) }
     }
 
+    /**
+     * 其他应用分享进来的单个 / 多个音频文件：合并为一本有声书（每个文件一章）。
+     */
+    fun importAudioFiles(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        if (uris.size == 1) {
+            importPackage(uris.first())
+            return
+        }
+        viewModelScope.launch {
+            importMutex.withLock {
+                runImport({ library.importAudioFiles(uris) }, navigate = true)
+            }
+        }
+    }
+
     /** 多次快速导入串行执行，避免并发写同一本书目录 / 状态互相覆盖导致卡住。 */
     private val importMutex = Mutex()
 
     /** Shared by the file picker and the market download: import, refresh, open and pre-dub. */
     private suspend fun importUri(uri: Uri, navigate: Boolean = true): ImportResult =
         importMutex.withLock {
-            _state.update { it.copy(isImporting = true, error = null) }
-            try {
-                val result = library.import(uri)
-                when (result) {
-                    is ImportResult.Success -> {
-                        val books = withContext(Dispatchers.IO) { library.listBooks() }
-                        _state.update {
-                            it.copy(isImporting = false, isLoading = false, books = books)
-                        }
-                        if (navigate) openBook(result.book.id)
-                        // Re-import replaced the whole book dir (including tts/): drop
-                        // any in-flight preparation holding the old book and re-queue.
-                        VoicePrepCenter.cancel(result.book.id)
-                        VoicePrepCenter.enqueue(result.book.id)
-                    }
-
-                    is ImportResult.Failure ->
-                        _state.update {
-                            it.copy(isImporting = false, isLoading = false, error = result.message)
-                        }
-                }
-                result
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                _state.update { it.copy(isImporting = false, isLoading = false) }
-                throw e
-            } catch (e: Exception) {
-                // 任何意外都不能让转圈一直挂着。
-                _state.update {
-                    it.copy(
-                        isImporting = false,
-                        isLoading = false,
-                        error = e.message ?: "导入失败",
-                    )
-                }
-                ImportResult.Failure(e.message ?: "导入失败")
-            }
+            runImport({ library.import(uri) }, navigate)
         }
+
+    private suspend fun runImport(
+        block: suspend () -> ImportResult,
+        navigate: Boolean,
+    ): ImportResult {
+        _state.update { it.copy(isImporting = true, error = null) }
+        val result = try {
+            block()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            _state.update { it.copy(isImporting = false, isLoading = false) }
+            throw e
+        } catch (e: Exception) {
+            // 任何意外都不能让转圈一直挂着。
+            _state.update {
+                it.copy(
+                    isImporting = false,
+                    isLoading = false,
+                    error = e.message ?: "导入失败",
+                )
+            }
+            ImportResult.Failure(e.message ?: "导入失败")
+        }
+        when (result) {
+            is ImportResult.Success -> {
+                val books = withContext(Dispatchers.IO) { library.listBooks() }
+                _state.update {
+                    it.copy(isImporting = false, isLoading = false, books = books)
+                }
+                if (navigate) openBook(result.book.id)
+                // Re-import replaced the whole book dir (including tts/): drop
+                // any in-flight preparation holding the old book and re-queue.
+                // 音频书直接播放 MP3，不需要 Edge TTS 配音。
+                VoicePrepCenter.cancel(result.book.id)
+                if (!result.book.audioMode) VoicePrepCenter.enqueue(result.book.id)
+            }
+
+            is ImportResult.Failure ->
+                _state.update {
+                    it.copy(isImporting = false, isLoading = false, error = result.message)
+                }
+        }
+        return result
+    }
 
     fun deleteBook(book: Audiobook) {
         val id = book.id
@@ -227,6 +243,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 // 上次听到第几句 —— 详情页据此显示「继续朗读」并从该句接着读。
                 savedChapterIndex = savedChapter.coerceAtLeast(0),
                 savedSentenceIndex = library.sentenceOf(id, chapter),
+                savedPositionMs = library.positionOf(id, chapter),
                 // 首页排序不在点击瞬间改变；等从详情返回首页时再按最近访问重排。
                 sentences = emptyList(),
                 currentSentenceIndex = -1,
@@ -500,12 +517,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         AppSettings.setShowSentence(show)
     }
 
-    // ---- Reader theme ----
-    fun setReaderTheme(theme: ReaderTheme) {
-        readerPrefs.edit().putString(KEY_READER_THEME, theme.name).apply()
-        _state.update { it.copy(readerTheme = theme) }
-    }
-
     // ---- Reading ----
 
     /** Loads a chapter's sentences and starts reading it in [screen]. */
@@ -534,26 +545,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         startChapter(book, chapter.coerceIn(0, book.chapters.lastIndex), Screen.PLAYER, -1)
     }
 
-    /** Detail "文稿": read this chapter in the document view. */
-    fun openDocument(book: Audiobook, index: Int) {
-        val s = _state.value
-        if (s.currentBookId == book.id && s.chapterIndex == index && s.sentences.isNotEmpty()) {
-            _state.update { it.copy(screen = Screen.READER) }
-        } else {
-            startChapter(book, index, Screen.READER, -1)
-        }
-    }
-
-    fun showDocument() {
-        if (_state.value.sentences.isEmpty()) return
-        _state.update { it.copy(screen = Screen.READER) }
-    }
-
-    fun showPlayer() {
-        if (_state.value.sentences.isEmpty()) return
-        _state.update { it.copy(screen = Screen.PLAYER) }
-    }
-
     /** Mini player tap: open the audiobook view. */
     fun openPlayer() {
         if (_state.value.hasActivePlayer) _state.update { it.copy(screen = Screen.PLAYER) }
@@ -565,6 +556,12 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     fun togglePlayPause() = PlaybackCenter.togglePlayPause()
 
     fun seekToSentence(index: Int) = PlaybackCenter.seekToSentence(index)
+
+    /** 音频模式：跳到音频文件的绝对位置。 */
+    fun seekToPosition(positionMs: Long) = PlaybackCenter.seekToPosition(positionMs)
+
+    /** 音频模式：前进 / 后退若干毫秒。 */
+    fun seekBy(deltaMs: Long) = PlaybackCenter.seekBy(deltaMs)
 
     fun skipSentences(delta: Int) = PlaybackCenter.skipSentences(delta)
 
@@ -624,7 +621,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun goBack() {
         when (_state.value.screen) {
-            Screen.READER -> _state.update { it.copy(screen = Screen.PLAYER) }
             Screen.PLAYER -> _state.update { it.copy(screen = Screen.DETAIL) }
             // 从详情返回首页时才按最近访问重排（点击瞬间不改首页顺序）。
             Screen.DETAIL -> _state.update {
@@ -648,11 +644,8 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     private fun persistProgress() {
         val s = _state.value
         val book = s.currentBook ?: return
-        library.saveProgress(
-            book.id,
-            s.chapterIndex,
-            s.currentSentenceIndex.coerceAtLeast(0).toLong()
-        )
+        val position = if (s.audioMode) s.positionMs else s.currentSentenceIndex.toLong()
+        library.saveProgress(book.id, s.chapterIndex, position.coerceAtLeast(0L))
     }
 
     override fun onCleared() {
@@ -663,7 +656,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private companion object {
-        const val KEY_READER_THEME = "reader_theme"
         const val MARKET_PAGE_SIZE = 20
     }
 }
