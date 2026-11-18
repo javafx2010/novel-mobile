@@ -193,9 +193,19 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         }
         when (result) {
             is ImportResult.Success -> {
-                val books = withContext(Dispatchers.IO) { library.listBooks() }
-                _state.update {
-                    it.copy(isImporting = false, isLoading = false, books = books)
+                // 立即把新书并入列表并收起转圈，不做全库 listBooks() 重扫：
+                // 那会对每本书逐章 isFile 检查，书一多转圈几十秒都不消失。
+                // result.book 是 installPackage 里完整 parse 出来的（含章节），可直接用。
+                _state.update { ui ->
+                    ui.copy(
+                        isImporting = false,
+                        isLoading = false,
+                        books = if (ui.books.any { it.id == result.book.id }) {
+                            ui.books.map { if (it.id == result.book.id) result.book else it }
+                        } else {
+                            listOf(result.book) + ui.books
+                        },
+                    )
                 }
                 if (navigate) openBook(result.book.id)
                 // Re-import replaced the whole book dir (including tts/): drop
@@ -215,22 +225,24 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun deleteBook(book: Audiobook) {
         val id = book.id
+        val wasCurrent = _state.value.currentBookId == id
+        // 先从 UI 立即移除，不等磁盘/数据库清理：配音缓存可能有成百上千个文件，
+        // 全库重扫也要解析每本书的 manifest，放在更新之前会让书格迟迟不消失。
+        _state.update { ui ->
+            ui.copy(
+                books = ui.books.filterNot { it.id == id },
+                currentBookId = if (wasCurrent) null else ui.currentBookId,
+                screen = if (wasCurrent) Screen.LIBRARY else ui.screen,
+                sentences = if (wasCurrent) emptyList() else ui.sentences,
+                isPlaying = if (wasCurrent) false else ui.isPlaying,
+            )
+        }
         viewModelScope.launch {
             VoicePrepCenter.cancel(id)
-            if (_state.value.currentBookId == id) PlaybackCenter.stop()
-            // 直接用 book.dir 删除，不再靠 id 重新拼目录名（id 可能和目录名不一致）。
-            withContext(Dispatchers.IO) { library.delete(book) }
-            val books = withContext(Dispatchers.IO) { library.listBooks() }
-            _state.update {
-                val wasCurrent = it.currentBookId == id
-                it.copy(
-                    books = books,
-                    currentBookId = if (wasCurrent) null else it.currentBookId,
-                    screen = if (wasCurrent) Screen.LIBRARY else it.screen,
-                    sentences = if (wasCurrent) emptyList() else it.sentences,
-                    isPlaying = if (wasCurrent) false else it.isPlaying,
-                )
-            }
+            if (wasCurrent) PlaybackCenter.stop()
+            // 后台清理文件与数据库；首页以数据库为准，删行后重启也不会复活。
+            // 不再用 listBooks() 重扫重建列表（既慢，目录删失败时还会把书扫回来）。
+            withContext(Dispatchers.IO) { runCatching { library.delete(book) } }
         }
     }
 
