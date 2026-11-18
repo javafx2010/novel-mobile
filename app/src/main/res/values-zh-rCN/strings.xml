@@ -1,0 +1,223 @@
+<resources>
+    <string name="app_name">听书</string>
+
+    <!-- Common -->
+    <string name="back">返回</string>
+    <string name="back_to_library">返回书架</string>
+    <string name="cancel">取消</string>
+    <string name="delete">删除</string>
+    <string name="on_text">开</string>
+    <string name="off_text">关</string>
+    <string name="play">播放</string>
+    <string name="pause">暂停</string>
+    <string name="play_pause">播放/暂停</string>
+    <string name="previous_sentence">上一句</string>
+    <string name="next_sentence">下一句</string>
+    <string name="audiobook">有声书</string>
+    <string name="all">全部</string>
+    <string name="chapter_count">%1$d 章</string>
+    <string name="minutes">%1$d 分钟</string>
+    <string name="seconds">%1$d 秒</string>
+    <string name="hours_minutes">%1$d 小时 %2$d 分</string>
+    <string name="source_open_share">打开方式 / 分享</string>
+
+    <!-- Language -->
+    <string name="language_section">界面语言</string>
+    <string name="language_hint">选择应用显示的语言，默认跟随系统。</string>
+    <string name="language_auto">跟随系统</string>
+    <string name="language_zh">简体中文</string>
+    <string name="language_en">English</string>
+    <string name="language_ja">日本語</string>
+
+    <!-- Notifications -->
+    <string name="voice_channel_name">后台配音</string>
+    <string name="voice_channel_desc">常驻后台自动为图书生成离线配音</string>
+    <string name="voice_notif_title">听书 · 后台配音</string>
+    <string name="voice_notif_idle">配音服务运行中 · 点击返回应用</string>
+    <string name="voice_notif_stop">停止</string>
+    <string name="voice_pending"> · 还有 %1$d 本待配音</string>
+    <string name="tray">托盘</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="section_reading">朗读</string>
+    <string name="section_reading_hint">整本书使用同一个音色朗读，切换音色后会按新音色重新生成离线配音。</string>
+    <string name="settings_voice">朗读音色</string>
+    <string name="section_storage">配音存储</string>
+    <string name="section_storage_hint">朗读时生成的语音文件（MP3）保存在该目录。</string>
+    <string name="settings_storage_location">存储位置</string>
+    <string name="settings_storage_path_hint">语音文件保存目录</string>
+    <string name="section_player">播放页</string>
+    <string name="section_player_hint">控制播放页显示的内容。</string>
+    <string name="settings_show_sentence">显示当前朗读句</string>
+    <string name="settings_show_sentence_hint">关闭后播放页只保留封面、进度和播放控件</string>
+
+    <!-- Voice screen -->
+    <string name="voice_title">朗读音色</string>
+    <string name="voice_hint">中文与英文音色，选中的音色对全书生效。</string>
+    <string name="voice_available">可用音色</string>
+    <string name="voice_all_books_hint">整本书使用同一个音色，切换后会按新音色重新生成离线配音。</string>
+    <string name="voice_desc_female_zh">女声 · 中文</string>
+    <string name="voice_desc_female_multi">女声 · 多语种</string>
+    <string name="voice_desc_female_en">女声 · 英文</string>
+    <string name="voice_desc_male_zh">男声 · 中文</string>
+    <string name="voice_desc_male_multi">男声 · 多语种</string>
+    <string name="voice_desc_male_en">男声 · 英文</string>
+
+    <!-- Storage screen -->
+    <string name="storage_title">配音存储</string>
+    <string name="storage_hint">朗读生成的语音文件保存在这里，存储失败会直接提示。</string>
+    <string name="storage_location">存储位置</string>
+    <string name="storage_auto">自动（SD 卡优先）</string>
+    <string name="storage_auto_hint">有可用的 SD 卡时保存在卡上，否则退回应用内部存储</string>
+    <string name="storage_internal">应用内部存储</string>
+    <string name="storage_internal_hint">随应用卸载 / 清除数据一起删除，最稳定</string>
+    <string name="storage_primary">主存储（应用目录）</string>
+    <string name="storage_primary_hint">保存在主存储的应用专属目录</string>
+    <string name="storage_custom">自定义目录</string>
+    <string name="storage_custom_hint">用系统文件选择器指定任意文件夹（长期授权）</string>
+    <string name="storage_choose_custom">选择自定义目录</string>
+    <string name="storage_current_dir">当前目录</string>
+    <string name="storage_change_hint">换目录后，未生成的书会重新排队配音。</string>
+    <string name="storage_sd_hint">把配音放在 SD 卡上可以省下手机内部空间；卡被拔出或目录不可写时会提示保存失败。</string>
+
+    <!-- Playback settings -->
+    <string name="playback_title">播放页</string>
+    <string name="playback_hint">有声书界面（留声机播放页）上的内容开关。</string>
+    <string name="playback_show_title">显示</string>
+    <string name="playback_show_hint">控制播放页显示的内容。</string>
+    <string name="playback_show_sentence">显示当前朗读句</string>
+    <string name="playback_show_sentence_hint">关闭后播放页只保留唱片、进度和播放控件</string>
+
+    <!-- Library -->
+    <string name="library_title">图书库</string>
+    <string name="library_subtitle">有声书 · %1$d 部</string>
+    <string name="library_loading">正在翻开唱片架…</string>
+    <string name="library_empty_title">唱片架还是空的</string>
+    <string name="library_empty_hint">导入 .epub 图书、.jpd 有声书，或直接分享 MP3 文件，即可开始收听。</string>
+    <string name="import_action">导入</string>
+    <string name="import_title">导入图书 / 音频</string>
+    <string name="delete_confirm">删除《%1$s》？</string>
+    <string name="delete_hint">将从本地移除该书及其封面、文稿与离线配音。</string>
+    <string name="continue_listening">继续收听</string>
+
+    <!-- Disc shelf (book detail) -->
+    <string name="shelf_title">选碟架</string>
+    <string name="shelf_count">碟片架 · 共 %1$d 张</string>
+    <string name="disc_number">第 %1$d 张</string>
+    <string name="choose_disc">选择碟片</string>
+    <string name="continue_reading">继续朗读</string>
+    <string name="start_reading">开始朗读</string>
+    <string name="no_book">没有选择书籍</string>
+    <string name="no_book_hint">请返回书架重新选择。</string>
+    <string name="last_pos_chapter_sentence">上次听到：第 %1$d 章 · 第 %2$d 句</string>
+    <string name="last_pos_chapter_time">上次听到：第 %1$d 章 · %2$s</string>
+    <string name="narrator">演播 %1$s</string>
+
+    <!-- Gramophone player -->
+    <string name="player_empty">还没有正在播放的内容</string>
+    <string name="player_empty_hint">从书架里选一本书开始收听。</string>
+    <string name="buffering">正在合成语音…</string>
+    <string name="previous_chapter">上一章</string>
+    <string name="next_chapter">下一章</string>
+    <string name="speed">播放速度</string>
+    <string name="speed_value">语速 %1$s×</string>
+    <string name="sleep_timer">睡眠定时</string>
+    <string name="timer">定时</string>
+    <string name="timer_value">定时 %1$s</string>
+    <string name="close">关闭</string>
+    <string name="collapse">收起</string>
+    <string name="minutes_15">15 分钟</string>
+    <string name="minutes_30">30 分钟</string>
+    <string name="minutes_60">60 分钟</string>
+    <string name="sentence_progress">第 %1$d / %2$d 句</string>
+
+    <!-- Market -->
+    <string name="market_title">图书市场</string>
+    <string name="market_hint">从服务器下载图书到本地</string>
+    <string name="market_refresh">刷新</string>
+    <string name="market_view_all">查看全部</string>
+    <string name="market_empty_title">市场暂无图书</string>
+    <string name="market_empty_hint">服务器上还没有可下载的图书，稍后再试或点刷新。</string>
+    <string name="market_category_empty">「%1$s」暂无可下载图书</string>
+    <string name="market_category_hint">该分类下的书还没有可下载的 EPUB 文件。</string>
+    <string name="market_total">共 %1$d 本 · 点击封面下载到本地</string>
+    <string name="market_download">点击下载</string>
+    <string name="market_downloading">下载中…</string>
+    <string name="market_download_suffix"> · 点击下载</string>
+    <string name="market_in_shelf">已在书架</string>
+
+    <!-- Lock screen -->
+    <string name="lock_title">锁屏播放</string>
+    <string name="lock_ambient_title">息屏播放</string>
+    <string name="lock_preparing">准备朗读…</string>
+    <string name="lock_controls_desc">锁屏与息屏时显示朗读控制</string>
+
+    <!-- Errors / messages -->
+    <string name="error_import_failed">导入失败</string>
+    <string name="error_library_failed">书库加载失败</string>
+    <string name="error_market_failed">市场加载失败</string>
+    <string name="error_download_failed">下载失败</string>
+    <string name="error_unknown">操作失败</string>
+    <string name="import_invalid_format">无法识别的文件格式：请选择 .epub 图书、.jpd 有声书或包含 MP3 的音频压缩包</string>
+    <string name="import_no_audio">没有可导入的音频文件</string>
+    <string name="import_bad_zip">解包失败</string>
+    <string name="import_read_failed">无法读取所选文件</string>
+    <string name="import_temp_failed">无法创建导入临时目录</string>
+    <string name="import_unpack_temp_failed">无法创建解包临时目录</string>
+    <string name="import_verify_failed">内容校验失败</string>
+    <string name="import_install_failed">导入后的校验失败</string>
+    <string name="import_audio_failed">导入音频失败</string>
+    <string name="import_illegal_path">压缩包包含非法路径：%1$s</string>
+    <string name="import_empty_zip">压缩包是空的</string>
+    <string name="import_no_playable_audio">压缩包里没有可播放的音频文件</string>
+    <string name="import_manifest_missing">压缩包缺少 manifest.json</string>
+    <string name="manifest_bad_json">manifest.json 不是合法的 JSON</string>
+    <string name="manifest_title_empty">title 不能为空</string>
+    <string name="manifest_chapters_empty">chapters 不能为空</string>
+    <string name="manifest_chapter_missing">第 %1$d 章缺少内容：请提供 audio（MP3）或 text / cues（字幕）</string>
+    <string name="manifest_format">format 必须为 %1$s</string>
+    <string name="manifest_version_high">version 高于 %1$s，当前版本不支持</string>
+    <string name="epub_invalid">不是有效的 EPUB：缺少 META-INF/container.xml</string>
+    <string name="epub_no_container">无法读取 container.xml</string>
+    <string name="epub_no_opf">找不到 EPUB 的 OPF 文件（%1$s）</string>
+    <string name="epub_no_rootfile">EPUB 缺少 rootfile（OPF）声明</string>
+    <string name="epub_read_opf_failed">无法读取 OPF 文件</string>
+    <string name="epub_no_content">EPUB 中没有可朗读的正文（spine 中无有效 XHTML 文稿）</string>
+    <string name="jpd_short">文件过短，不是有效的 .jpd 加密包</string>
+    <string name="jpd_invalid">不是有效的 .jpd 加密包，请用 PackJpd 生成</string>
+    <string name="jpd_decrypt_failed">.jpd 解密失败（密钥不匹配或文件已损坏）：%1$s</string>
+    <string name="market_empty_response">市场返回为空</string>
+    <string name="market_http_error">市场加载失败（HTTP %1$d）</string>
+    <string name="category_http_error">分类加载失败（HTTP %1$d）</string>
+    <string name="download_empty">下载内容为空</string>
+    <string name="download_url_empty">下载地址为空</string>
+    <string name="download_http_error">下载失败（HTTP %1$d）</string>
+    <string name="voice_save_failed">配音文件保存失败</string>
+    <string name="voice_save_failed_detail">配音文件保存失败：%1$s 无法写入。</string>
+    <string name="voice_change_dir_hint">请在「设置 → 配音存储」中更换目录，或检查存储卡是否已满/被拔出。</string>
+    <string name="voice_storage_no_ext">外部存储不可写，已临时改用应用内部存储</string>
+    <string name="voice_storage_no_custom">尚未选择自定义目录，已使用应用内部存储</string>
+    <string name="voice_storage_custom_invalid">自定义目录已失效（权限被回收或目录被删除），已临时改用应用内部存储</string>
+    <string name="voice_not_ready">未配音</string>
+    <string name="voice_custom_dir">自定义目录：%1$s</string>
+    <string name="tts_service_unavailable">微软 Edge 语音服务不可用，请检查网络连接后重试</string>
+    <string name="no_speech_text">本章没有可朗读的文稿</string>
+    <string name="speech_failed">语音合成失败，请检查网络或稍后重试</string>
+    <string name="audio_play_failed">无法播放音频：%1$s</string>
+    <string name="audio_error">音频播放失败 (%1$d/%2$d)</string>
+    <string name="audio_load_failed">无法加载音频：%1$s</string>
+    <string name="audio_invalid_url">音频地址无效：%1$s</string>
+    <string name="player_start_failed">播放启动失败：%1$s</string>
+    <string name="player_state_error">播放器状态异常：%1$s</string>
+    <string name="player_error">播放错误 (%1$d, %2$d)</string>
+    <string name="voice_dubbing">配音中</string>
+    <string name="chapter_title_default">第 %1$d 章</string>
+    <string name="speech_playback_error">语音播放失败 (%1$d/%2$d)</string>
+    <string name="speech_playback_failed">语音播放失败：%1$s</string>
+    <string name="audio_data_invalid">音频数据无效</string>
+    <string name="network_unavailable">网络或微软语音服务不可用</string>
+    <string name="speech_http_error">语音合成失败（HTTP %1$s）：</string>
+    <string name="connection_closed">连接提前关闭，未收到音频</string>
+    <string name="connect_failed">无法连接语音服务：%1$s</string>
+</resources>

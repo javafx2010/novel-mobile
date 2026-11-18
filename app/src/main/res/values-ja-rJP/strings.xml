@@ -1,0 +1,223 @@
+<resources>
+    <string name="app_name">オーディオブック</string>
+
+    <!-- Common -->
+    <string name="back">戻る</string>
+    <string name="back_to_library">書庫に戻る</string>
+    <string name="cancel">キャンセル</string>
+    <string name="delete">削除</string>
+    <string name="on_text">オン</string>
+    <string name="off_text">オフ</string>
+    <string name="play">再生</string>
+    <string name="pause">一時停止</string>
+    <string name="play_pause">再生 / 一時停止</string>
+    <string name="previous_sentence">前の文</string>
+    <string name="next_sentence">次の文</string>
+    <string name="audiobook">オーディオブック</string>
+    <string name="all">すべて</string>
+    <string name="chapter_count">全%1$d章</string>
+    <string name="minutes">%1$d分</string>
+    <string name="seconds">%1$d秒</string>
+    <string name="hours_minutes">%1$d時間%2$d分</string>
+    <string name="source_open_share">開く / 共有</string>
+
+    <!-- Language -->
+    <string name="language_section">表示言語</string>
+    <string name="language_hint">アプリに表示する言語を選びます。既定では端末の言語に従います。</string>
+    <string name="language_auto">システムに従う</string>
+    <string name="language_zh">简体中文</string>
+    <string name="language_en">English</string>
+    <string name="language_ja">日本語</string>
+
+    <!-- Notifications -->
+    <string name="voice_channel_name">音声の準備</string>
+    <string name="voice_channel_desc">バックグラウンドでオフライン音声を生成し続けます</string>
+    <string name="voice_notif_title">オーディオブック · 音声の準備</string>
+    <string name="voice_notif_idle">音声サービスが動作中 · タップして戻る</string>
+    <string name="voice_notif_stop">停止</string>
+    <string name="voice_pending"> · 残り%1$d冊</string>
+    <string name="tray">トレイ</string>
+
+    <!-- Settings -->
+    <string name="settings_title">設定</string>
+    <string name="section_reading">読み上げ</string>
+    <string name="section_reading_hint">1冊の本は同じ声で朗読されます。声を変えるとオフライン音声が再生成されます。</string>
+    <string name="settings_voice">朗読の声</string>
+    <string name="section_storage">音声の保存先</string>
+    <string name="section_storage_hint">生成されたMP3はこのフォルダに保存されます。</string>
+    <string name="settings_storage_location">保存先</string>
+    <string name="settings_storage_path_hint">音声ファイルの保存フォルダ</string>
+    <string name="section_player">再生画面</string>
+    <string name="section_player_hint">再生画面に表示する内容を設定します。</string>
+    <string name="settings_show_sentence">現在の文を表示</string>
+    <string name="settings_show_sentence_hint">オフにすると、表紙・進捗・操作ボタンのみ表示されます</string>
+
+    <!-- Voice screen -->
+    <string name="voice_title">朗読の声</string>
+    <string name="voice_hint">中国語と英語の声が選べます。選択した声は本全体に適用されます。</string>
+    <string name="voice_available">利用可能な声</string>
+    <string name="voice_all_books_hint">1冊の本は同じ声で朗読されます。声を変えるとオフライン音声が再生成されます。</string>
+    <string name="voice_desc_female_zh">女声 · 中国語</string>
+    <string name="voice_desc_female_multi">女声 · 多言語</string>
+    <string name="voice_desc_female_en">女声 · 英語</string>
+    <string name="voice_desc_male_zh">男声 · 中国語</string>
+    <string name="voice_desc_male_multi">男声 · 多言語</string>
+    <string name="voice_desc_male_en">男声 · 英語</string>
+
+    <!-- Storage screen -->
+    <string name="storage_title">音声の保存先</string>
+    <string name="storage_hint">生成された音声はここに保存されます。保存に失敗すると通知します。</string>
+    <string name="storage_location">保存先</string>
+    <string name="storage_auto">自動（SDカード優先）</string>
+    <string name="storage_auto_hint">SDカードが使える場合はカードに、それ以外は内部ストレージに保存します</string>
+    <string name="storage_internal">内部ストレージ</string>
+    <string name="storage_internal_hint">アプリの削除・データ消去時に削除されます。最も安定しています</string>
+    <string name="storage_primary">プライマリストレージ（アプリフォルダ）</string>
+    <string name="storage_primary_hint">プライマリボリュームのアプリ専用フォルダに保存します</string>
+    <string name="storage_custom">カスタムフォルダ</string>
+    <string name="storage_custom_hint">システムのファイル選択で任意のフォルダを指定します（永続許可）</string>
+    <string name="storage_choose_custom">カスタムフォルダを選択</string>
+    <string name="storage_current_dir">現在のフォルダ</string>
+    <string name="storage_change_hint">フォルダを変えると、未生成の本が再び配音待ちになります。</string>
+    <string name="storage_sd_hint">音声をSDカードに置くと内部ストレージを節約できます。カードが外れたり書き込めない場合は保存失敗を通知します。</string>
+
+    <!-- Playback settings -->
+    <string name="playback_title">再生画面</string>
+    <string name="playback_hint">蓄音機の再生画面に表示する内容のスイッチです。</string>
+    <string name="playback_show_title">表示</string>
+    <string name="playback_show_hint">再生画面に表示する内容を設定します。</string>
+    <string name="playback_show_sentence">現在の文を表示</string>
+    <string name="playback_show_sentence_hint">オフにすると、レコード・進捗・操作ボタンのみ表示されます</string>
+
+    <!-- Library -->
+    <string name="library_title">書庫</string>
+    <string name="library_subtitle">オーディオブック · %1$d冊</string>
+    <string name="library_loading">レコード棚を開いています…</string>
+    <string name="library_empty_title">棚はまだ空です</string>
+    <string name="library_empty_hint">EPUBや.jpdを読み込むか、MP3を共有すると再生できます。</string>
+    <string name="import_action">読み込む</string>
+    <string name="import_title">本 / 音声を読み込む</string>
+    <string name="delete_confirm">「%1$s」を削除しますか？</string>
+    <string name="delete_hint">表紙・原稿・オフライン音声も端末から削除されます。</string>
+    <string name="continue_listening">続きを聴く</string>
+
+    <!-- Disc shelf (book detail) -->
+    <string name="shelf_title">ディスク棚</string>
+    <string name="shelf_count">ディスク棚 · 全%1$d枚</string>
+    <string name="disc_number">第%1$d枚</string>
+    <string name="choose_disc">ディスクを選ぶ</string>
+    <string name="continue_reading">続きを読む</string>
+    <string name="start_reading">読み始める</string>
+    <string name="no_book">本が選ばれていません</string>
+    <string name="no_book_hint">棚に戻って本を選び直してください。</string>
+    <string name="last_pos_chapter_sentence">前回：第%1$d章 · 第%2$d文</string>
+    <string name="last_pos_chapter_time">前回：第%1$d章 · %2$s</string>
+    <string name="narrator">朗読：%1$s</string>
+
+    <!-- Gramophone player -->
+    <string name="player_empty">再生中のコンテンツはありません</string>
+    <string name="player_empty_hint">棚から本を選んで再生してください。</string>
+    <string name="buffering">音声を生成中…</string>
+    <string name="previous_chapter">前の章</string>
+    <string name="next_chapter">次の章</string>
+    <string name="speed">再生速度</string>
+    <string name="speed_value">速度 %1$s×</string>
+    <string name="sleep_timer">スリープタイマー</string>
+    <string name="timer">タイマー</string>
+    <string name="timer_value">タイマー %1$s</string>
+    <string name="close">閉じる</string>
+    <string name="collapse">閉じる</string>
+    <string name="minutes_15">15分</string>
+    <string name="minutes_30">30分</string>
+    <string name="minutes_60">60分</string>
+    <string name="sentence_progress">第%1$d / %2$d文</string>
+
+    <!-- Market -->
+    <string name="market_title">書籍マーケット</string>
+    <string name="market_hint">サーバーから本をダウンロードして書庫に追加します</string>
+    <string name="market_refresh">更新</string>
+    <string name="market_view_all">すべて表示</string>
+    <string name="market_empty_title">マーケットに本がありません</string>
+    <string name="market_empty_hint">サーバーにダウンロード可能な本がありません。後でもう一度お試しください。</string>
+    <string name="market_category_empty">「%1$s」に本がありません</string>
+    <string name="market_category_hint">このカテゴリにはダウンロード可能なEPUBがまだありません。</string>
+    <string name="market_total">全%1$d冊 · 表紙をタップしてダウンロード</string>
+    <string name="market_download">タップしてダウンロード</string>
+    <string name="market_downloading">ダウンロード中…</string>
+    <string name="market_download_suffix"> · タップしてダウンロード</string>
+    <string name="market_in_shelf">書庫にあります</string>
+
+    <!-- Lock screen -->
+    <string name="lock_title">ロック画面再生</string>
+    <string name="lock_ambient_title">消灯再生</string>
+    <string name="lock_preparing">準備中…</string>
+    <string name="lock_controls_desc">ロック画面と消灯時に朗読操作を表示します</string>
+
+    <!-- Errors / messages -->
+    <string name="error_import_failed">読み込みに失敗しました</string>
+    <string name="error_library_failed">書庫の読み込みに失敗しました</string>
+    <string name="error_market_failed">マーケットの読み込みに失敗しました</string>
+    <string name="error_download_failed">ダウンロードに失敗しました</string>
+    <string name="error_unknown">操作に失敗しました</string>
+    <string name="import_invalid_format">ファイルを認識できません。EPUB、.jpd、またはMP3を含むZIPを選んでください。</string>
+    <string name="import_no_audio">読み込める音声ファイルがありません</string>
+    <string name="import_bad_zip">アーカイブの展開に失敗しました</string>
+    <string name="import_read_failed">選択したファイルを読み込めません</string>
+    <string name="import_temp_failed">読み込み用の一時フォルダを作成できません</string>
+    <string name="import_unpack_temp_failed">展開用の一時フォルダを作成できません</string>
+    <string name="import_verify_failed">内容の検証に失敗しました</string>
+    <string name="import_install_failed">読み込み後の検証に失敗しました</string>
+    <string name="import_audio_failed">音声の読み込みに失敗しました</string>
+    <string name="import_illegal_path">アーカイブに不正なパスがあります：%1$s</string>
+    <string name="import_empty_zip">アーカイブが空です</string>
+    <string name="import_no_playable_audio">再生できる音声がアーカイブにありません</string>
+    <string name="import_manifest_missing">アーカイブにmanifest.jsonがありません</string>
+    <string name="manifest_bad_json">manifest.jsonが正しいJSONではありません</string>
+    <string name="manifest_title_empty">titleを空にすることはできません</string>
+    <string name="manifest_chapters_empty">chaptersを空にすることはできません</string>
+    <string name="manifest_chapter_missing">第%1$d章に内容がありません：audio（MP3）またはtext / cuesを指定してください</string>
+    <string name="manifest_format">formatは%1$sである必要があります</string>
+    <string name="manifest_version_high">version %1$sはこのアプリでは対応していません</string>
+    <string name="epub_invalid">有効なEPUBではありません：META-INF/container.xmlがありません</string>
+    <string name="epub_no_container">container.xmlを読み込めません</string>
+    <string name="epub_no_opf">EPUBのOPFファイル（%1$s）が見つかりません</string>
+    <string name="epub_no_rootfile">EPUBにrootfile（OPF）宣言がありません</string>
+    <string name="epub_read_opf_failed">OPFファイルを読み込めません</string>
+    <string name="epub_no_content">朗読できる本文がありません（spineに有効なXHTMLがありません）</string>
+    <string name="jpd_short">ファイルが短すぎて有効な.jpdパッケージではありません</string>
+    <string name="jpd_invalid">有効な.jpdパッケージではありません。PackJpdで生成してください</string>
+    <string name="jpd_decrypt_failed">.jpdの復号に失敗しました（鍵が違うかファイルが破損）：%1$s</string>
+    <string name="market_empty_response">マーケットから何も返されませんでした</string>
+    <string name="market_http_error">マーケットの読み込みに失敗しました（HTTP %1$d）</string>
+    <string name="category_http_error">カテゴリの読み込みに失敗しました（HTTP %1$d）</string>
+    <string name="download_empty">ダウンロード内容が空です</string>
+    <string name="download_url_empty">ダウンロードURLが空です</string>
+    <string name="download_http_error">ダウンロードに失敗しました（HTTP %1$d）</string>
+    <string name="voice_save_failed">音声ファイルの保存に失敗しました</string>
+    <string name="voice_save_failed_detail">音声ファイルの保存に失敗しました：%1$sに書き込めません。</string>
+    <string name="voice_change_dir_hint">「設定 → 音声の保存先」でフォルダを変更するか、SDカードの容量・抜き取りを確認してください。</string>
+    <string name="voice_storage_no_ext">外部ストレージに書き込めないため、一時的に内部ストレージを使用します</string>
+    <string name="voice_storage_no_custom">カスタムフォルダが未選択のため、内部ストレージを使用します</string>
+    <string name="voice_storage_custom_invalid">カスタムフォルダが無効になったため、一時的に内部ストレージを使用します</string>
+    <string name="voice_not_ready">未生成</string>
+    <string name="voice_custom_dir">カスタムフォルダ：%1$s</string>
+    <string name="tts_service_unavailable">Microsoft Edge音声サービスを利用できません。接続を確認して再試行してください。</string>
+    <string name="no_speech_text">この章には朗読できる本文がありません</string>
+    <string name="speech_failed">音声合成に失敗しました。接続を確認するか、しばらくしてからお試しください。</string>
+    <string name="audio_play_failed">音声を再生できません：%1$s</string>
+    <string name="audio_error">音声の再生に失敗しました (%1$d/%2$d)</string>
+    <string name="audio_load_failed">音声を読み込めません：%1$s</string>
+    <string name="audio_invalid_url">音声URLが無効です：%1$s</string>
+    <string name="player_start_failed">再生の開始に失敗しました：%1$s</string>
+    <string name="player_state_error">プレーヤーの状態が異常です：%1$s</string>
+    <string name="player_error">再生エラー (%1$d, %2$d)</string>
+    <string name="voice_dubbing">音声生成中</string>
+    <string name="chapter_title_default">第%1$d章</string>
+    <string name="speech_playback_error">音声の再生に失敗しました (%1$d/%2$d)</string>
+    <string name="speech_playback_failed">音声の再生に失敗しました：%1$s</string>
+    <string name="audio_data_invalid">音声データが無効です</string>
+    <string name="network_unavailable">ネットワークまたはMicrosoft音声サービスを利用できません</string>
+    <string name="speech_http_error">音声合成に失敗しました（HTTP %1$s）：</string>
+    <string name="connection_closed">音声を受信する前に接続が閉じられました</string>
+    <string name="connect_failed">音声サービスに接続できません：%1$s</string>
+</resources>
