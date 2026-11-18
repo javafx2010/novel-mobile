@@ -7,12 +7,10 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -89,7 +87,9 @@ import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -203,6 +203,7 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 GramophoneHero(
                     cover = book.coverFile,
                     playing = state.isPlaying,
+                    progress = sliderValue,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -435,6 +436,7 @@ private fun ChapterPlaque(title: String, onBack: () -> Unit) {
 private fun GramophoneHero(
     cover: java.io.File?,
     playing: Boolean,
+    progress: Float,
     modifier: Modifier = Modifier,
 ) {
     val bitmap = rememberCover(cover)
@@ -465,7 +467,12 @@ private fun GramophoneHero(
         )
         Box(Modifier.size(discSize)) {
             VinylRecord(size = discSize, bitmap = bitmap, angle = angle, playing = playing)
-            TonearmLayer(size = discSize, playing = playing)
+            TonearmLayer(
+                size = discSize,
+                playing = playing,
+                progress = progress,
+                rotation = angle,
+            )
         }
     }
 }
@@ -682,16 +689,75 @@ private fun VinylRecord(
 
 /** Brass tonearm anchored at the top-right of the record. */
 @Composable
-private fun TonearmLayer(size: Dp, playing: Boolean) {
+private fun TonearmLayer(
+    size: Dp,
+    playing: Boolean,
+    progress: Float,
+    rotation: State<Float>,
+) {
+    // The stylus rides an arc of fixed arm length. Sweep it across the groove band only:
+    // -37° sits at the outer edge (~0.96 of the disc radius), -8° stops just outside the
+    // 0.40R label. The old 0°→+20° range started mid-disc and dug into the label.
+    // Paused, the arm lifts off the record entirely.
+    val targetSwing = if (playing) {
+        -37f + progress.coerceIn(0f, 1f) * 29f
+    } else {
+        -42f
+    }
     val swing by animateFloatAsState(
-        targetValue = if (playing) 0f else -11f,
-        animationSpec = spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessLow),
+        targetValue = targetSwing,
+        animationSpec = tween(durationMillis = 420, easing = LinearEasing),
         label = "tonearmSwing",
     )
     Canvas(Modifier.size(size)) {
         val w = this.size.width
         val h = this.size.height
         val pivot = Offset(w * 0.93f, h * 0.13f)
+        val center = Offset(w * 0.5f, h * 0.5f)
+
+        // Resolve the rotated geometry by hand so the exact stylus point is available
+        // for the groove trail (Compose rotate() is a clockwise screen-space rotation).
+        fun spin(p: Offset, degrees: Float): Offset {
+            val rad = Math.toRadians(degrees.toDouble())
+            val c = cos(rad).toFloat()
+            val s = sin(rad).toFloat()
+            val dx = p.x - pivot.x
+            val dy = p.y - pivot.y
+            return Offset(pivot.x + dx * c - dy * s, pivot.y + dx * s + dy * c)
+        }
+
+        val baseHead = Offset(w * 0.76f, h * 0.44f)
+        val head = spin(baseHead, swing)
+        val tail = spin(Offset(pivot.x + w * 0.05f, pivot.y - h * 0.05f), swing)
+        val tip = spin(Offset(baseHead.x - w * 0.02f, baseHead.y + h * 0.03f), swing)
+
+        // Groove trail: discrete marks the stylus paints onto the record. Each mark is
+        // carried clockwise by the spinning disc and fades out after half a revolution;
+        // new ones appear at the stylus, so the tail visibly rotates with the record.
+        // Reading rotation.value here redraws every frame and freezes the trail on pause.
+        if (playing) {
+            val radius = hypot(tip.x - center.x, tip.y - center.y)
+            val startAngle = atan2(tip.y - center.y, tip.x - center.x)
+            val halfTurn = PI.toFloat()
+            // 0→1 every 180° of disc rotation; seamless because the marks are evenly spaced.
+            val phase = (((rotation.value % 180f) + 180f) % 180f) / 180f
+            val marks = 40
+            val seg = halfTurn / marks
+            for (i in 0 until marks) {
+                // Every dash drifts clockwise with the record: phase shifts all ages
+                // continuously, so the tail visibly slides and wraps at the half turn.
+                val age = ((i.toFloat() / marks) + phase) % 1f
+                val a0 = startAngle + age * halfTurn
+                val a1 = a0 + seg * 0.5f
+                drawLine(
+                    color = BrassLight.copy(alpha = 0.34f * (1f - age) * (1f - age)),
+                    start = Offset(center.x + cos(a0) * radius, center.y + sin(a0) * radius),
+                    end = Offset(center.x + cos(a1) * radius, center.y + sin(a1) * radius),
+                    strokeWidth = 1.3.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
 
         // Pivot base.
         drawCircle(Color(0xFF241C15), radius = 17.dp.toPx(), center = pivot)
@@ -703,38 +769,35 @@ private fun TonearmLayer(size: Dp, playing: Boolean) {
         )
         drawCircle(Brass, radius = 5.dp.toPx(), center = pivot)
 
-        rotate(degrees = swing, pivot = pivot) {
-            val head = Offset(w * 0.76f, h * 0.44f)
-            // Counterweight behind the pivot.
-            drawLine(
-                color = BrassDark,
-                start = pivot,
-                end = Offset(pivot.x + w * 0.05f, pivot.y - h * 0.05f),
-                strokeWidth = 7.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-            // Arm.
-            drawLine(
-                brush = Brush.linearGradient(
-                    colors = listOf(BrassLight, Brass, BrassDark),
-                    start = pivot,
-                    end = head,
-                ),
+        // Counterweight behind the pivot.
+        drawLine(
+            color = BrassDark,
+            start = pivot,
+            end = tail,
+            strokeWidth = 7.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        // Arm.
+        drawLine(
+            brush = Brush.linearGradient(
+                colors = listOf(BrassLight, Brass, BrassDark),
                 start = pivot,
                 end = head,
-                strokeWidth = 6.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-            // Cartridge / stylus.
-            drawCircle(BrassLight, radius = 7.dp.toPx(), center = head)
-            drawLine(
-                color = Cream.copy(alpha = 0.85f),
-                start = head,
-                end = Offset(head.x - w * 0.02f, head.y + h * 0.03f),
-                strokeWidth = 2.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-        }
+            ),
+            start = pivot,
+            end = head,
+            strokeWidth = 6.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        // Cartridge / stylus.
+        drawCircle(BrassLight, radius = 7.dp.toPx(), center = head)
+        drawLine(
+            color = Cream.copy(alpha = 0.85f),
+            start = head,
+            end = tip,
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
     }
 }
 
