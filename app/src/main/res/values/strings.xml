@@ -132,20 +132,6 @@
     <string name="minutes_60">60 min</string>
     <string name="sentence_progress">Sentence %1$d / %2$d</string>
 
-    <!-- Market -->
-    <string name="market_title">Book market</string>
-    <string name="market_hint">Download books from the server to your library</string>
-    <string name="market_refresh">Refresh</string>
-    <string name="market_view_all">View all</string>
-    <string name="market_empty_title">No books in the market</string>
-    <string name="market_empty_hint">Nothing on the server yet. Try again later or refresh.</string>
-    <string name="market_category_empty">No books in \"%1$s\"</string>
-    <string name="market_category_hint">No downloadable EPUB in this category yet.</string>
-    <string name="market_total">%1$d books · Tap a cover to download</string>
-    <string name="market_download">Tap to download</string>
-    <string name="market_downloading">Downloading…</string>
-    <string name="market_download_suffix"> · Tap to download</string>
-    <string name="market_in_shelf">In library</string>
 
     <!-- Lock screen -->
     <string name="lock_title">Lock screen playback</string>
@@ -156,8 +142,6 @@
     <!-- Errors / messages -->
     <string name="error_import_failed">Import failed</string>
     <string name="error_library_failed">Failed to load the library</string>
-    <string name="error_market_failed">Failed to load the market</string>
-    <string name="error_download_failed">Download failed</string>
     <string name="error_unknown">Operation failed</string>
     <string name="import_invalid_format">Unrecognized file. Choose an EPUB book, a .jpd audiobook, or a ZIP containing MP3 files.</string>
     <string name="import_no_audio">No importable audio files</string>
@@ -187,12 +171,6 @@
     <string name="jpd_short">File too short to be a valid .jpd package</string>
     <string name="jpd_invalid">Not a valid .jpd package; generate it with PackJpd</string>
     <string name="jpd_decrypt_failed">.jpd decryption failed (wrong key or corrupt file): %1$s</string>
-    <string name="market_empty_response">The market returned nothing</string>
-    <string name="market_http_error">Failed to load the market (HTTP %1$d)</string>
-    <string name="category_http_error">Failed to load categories (HTTP %1$d)</string>
-    <string name="download_empty">The download is empty</string>
-    <string name="download_url_empty">The download URL is empty</string>
-    <string name="download_http_error">Download failed (HTTP %1$d)</string>
     <string name="voice_save_failed">Failed to save the voice file</string>
     <string name="voice_save_failed_detail">Failed to save the voice file: %1$s is not writable.</string>
     <string name="voice_change_dir_hint">Change the folder in Settings → Voice storage, or check that the SD card is not full or removed.</string>

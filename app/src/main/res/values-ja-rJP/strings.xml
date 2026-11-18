@@ -132,20 +132,6 @@
     <string name="minutes_60">60分</string>
     <string name="sentence_progress">第%1$d / %2$d文</string>
 
-    <!-- Market -->
-    <string name="market_title">書籍マーケット</string>
-    <string name="market_hint">サーバーから本をダウンロードして書庫に追加します</string>
-    <string name="market_refresh">更新</string>
-    <string name="market_view_all">すべて表示</string>
-    <string name="market_empty_title">マーケットに本がありません</string>
-    <string name="market_empty_hint">サーバーにダウンロード可能な本がありません。後でもう一度お試しください。</string>
-    <string name="market_category_empty">「%1$s」に本がありません</string>
-    <string name="market_category_hint">このカテゴリにはダウンロード可能なEPUBがまだありません。</string>
-    <string name="market_total">全%1$d冊 · 表紙をタップしてダウンロード</string>
-    <string name="market_download">タップしてダウンロード</string>
-    <string name="market_downloading">ダウンロード中…</string>
-    <string name="market_download_suffix"> · タップしてダウンロード</string>
-    <string name="market_in_shelf">書庫にあります</string>
 
     <!-- Lock screen -->
     <string name="lock_title">ロック画面再生</string>
@@ -156,8 +142,6 @@
     <!-- Errors / messages -->
     <string name="error_import_failed">読み込みに失敗しました</string>
     <string name="error_library_failed">書庫の読み込みに失敗しました</string>
-    <string name="error_market_failed">マーケットの読み込みに失敗しました</string>
-    <string name="error_download_failed">ダウンロードに失敗しました</string>
     <string name="error_unknown">操作に失敗しました</string>
     <string name="import_invalid_format">ファイルを認識できません。EPUB、.jpd、またはMP3を含むZIPを選んでください。</string>
     <string name="import_no_audio">読み込める音声ファイルがありません</string>
@@ -187,12 +171,6 @@
     <string name="jpd_short">ファイルが短すぎて有効な.jpdパッケージではありません</string>
     <string name="jpd_invalid">有効な.jpdパッケージではありません。PackJpdで生成してください</string>
     <string name="jpd_decrypt_failed">.jpdの復号に失敗しました（鍵が違うかファイルが破損）：%1$s</string>
-    <string name="market_empty_response">マーケットから何も返されませんでした</string>
-    <string name="market_http_error">マーケットの読み込みに失敗しました（HTTP %1$d）</string>
-    <string name="category_http_error">カテゴリの読み込みに失敗しました（HTTP %1$d）</string>
-    <string name="download_empty">ダウンロード内容が空です</string>
-    <string name="download_url_empty">ダウンロードURLが空です</string>
-    <string name="download_http_error">ダウンロードに失敗しました（HTTP %1$d）</string>
     <string name="voice_save_failed">音声ファイルの保存に失敗しました</string>
     <string name="voice_save_failed_detail">音声ファイルの保存に失敗しました：%1$sに書き込めません。</string>
     <string name="voice_change_dir_hint">「設定 → 音声の保存先」でフォルダを変更するか、SDカードの容量・抜き取りを確認してください。</string>

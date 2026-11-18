@@ -26,7 +26,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -72,7 +71,6 @@ import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
 import com.wildenglish.app.audiobook.Screen
 import com.wildenglish.app.audiobook.playback.VoicePrepCenter
-import com.wildenglish.app.ui.theme.LiquidGlassBackdrop
 
 private val MiniBrass = Color(0xFFC79A56)
 private val MiniBrassLight = Color(0xFFF0D8A8)
@@ -116,22 +114,12 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
         activity?.moveTaskToBack(true)
     }
 
-    val darkChrome = isSystemInDarkTheme()
     Box(Modifier.fillMaxSize()) {
-        val darkScreen = when (state.screen) {
-            Screen.LIBRARY, Screen.DETAIL, Screen.PLAYER,
-            Screen.SETTINGS, Screen.VOICE, Screen.STORAGE, Screen.PLAYBACK,
-            Screen.LANGUAGE -> true
-
-            else -> false // 书城等仍用浅色玻璃背景
-        }
-        if (darkScreen) {
-            Box(Modifier
+        Box(
+            Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0B0908)))
-        } else {
-            LiquidGlassBackdrop(Modifier.fillMaxSize(), dark = darkChrome)
-        }
+                .background(Color(0xFF0B0908))
+        )
         Column(Modifier
             .fillMaxSize()
             .navigationBarsPadding()) {
@@ -150,7 +138,6 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
                         )
                         Screen.DETAIL -> BookDetailScreen(state, vm)
                         Screen.PLAYER -> PlayerScreen(state, vm)
-                        Screen.MARKET -> MarketScreen(state, vm)
                         Screen.SETTINGS -> SettingsScreen(state, vm)
                         Screen.VOICE -> VoiceScreen(state, vm)
                         Screen.STORAGE -> StorageScreen(state, vm)

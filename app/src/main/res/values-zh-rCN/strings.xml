@@ -132,20 +132,6 @@
     <string name="minutes_60">60 分钟</string>
     <string name="sentence_progress">第 %1$d / %2$d 句</string>
 
-    <!-- Market -->
-    <string name="market_title">图书市场</string>
-    <string name="market_hint">从服务器下载图书到本地</string>
-    <string name="market_refresh">刷新</string>
-    <string name="market_view_all">查看全部</string>
-    <string name="market_empty_title">市场暂无图书</string>
-    <string name="market_empty_hint">服务器上还没有可下载的图书，稍后再试或点刷新。</string>
-    <string name="market_category_empty">「%1$s」暂无可下载图书</string>
-    <string name="market_category_hint">该分类下的书还没有可下载的 EPUB 文件。</string>
-    <string name="market_total">共 %1$d 本 · 点击封面下载到本地</string>
-    <string name="market_download">点击下载</string>
-    <string name="market_downloading">下载中…</string>
-    <string name="market_download_suffix"> · 点击下载</string>
-    <string name="market_in_shelf">已在书架</string>
 
     <!-- Lock screen -->
     <string name="lock_title">锁屏播放</string>
@@ -156,8 +142,6 @@
     <!-- Errors / messages -->
     <string name="error_import_failed">导入失败</string>
     <string name="error_library_failed">书库加载失败</string>
-    <string name="error_market_failed">市场加载失败</string>
-    <string name="error_download_failed">下载失败</string>
     <string name="error_unknown">操作失败</string>
     <string name="import_invalid_format">无法识别的文件格式：请选择 .epub 图书、.jpd 有声书或包含 MP3 的音频压缩包</string>
     <string name="import_no_audio">没有可导入的音频文件</string>
@@ -187,12 +171,6 @@
     <string name="jpd_short">文件过短，不是有效的 .jpd 加密包</string>
     <string name="jpd_invalid">不是有效的 .jpd 加密包，请用 PackJpd 生成</string>
     <string name="jpd_decrypt_failed">.jpd 解密失败（密钥不匹配或文件已损坏）：%1$s</string>
-    <string name="market_empty_response">市场返回为空</string>
-    <string name="market_http_error">市场加载失败（HTTP %1$d）</string>
-    <string name="category_http_error">分类加载失败（HTTP %1$d）</string>
-    <string name="download_empty">下载内容为空</string>
-    <string name="download_url_empty">下载地址为空</string>
-    <string name="download_http_error">下载失败（HTTP %1$d）</string>
     <string name="voice_save_failed">配音文件保存失败</string>
     <string name="voice_save_failed_detail">配音文件保存失败：%1$s 无法写入。</string>
     <string name="voice_change_dir_hint">请在「设置 → 配音存储」中更换目录，或检查存储卡是否已满/被拔出。</string>

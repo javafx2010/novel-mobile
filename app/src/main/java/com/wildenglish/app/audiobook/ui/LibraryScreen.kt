@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -139,12 +138,6 @@ fun LibraryScreen(
                     onClick = vm::openSettings,
                     icon = Icons.Filled.Settings,
                     label = stringResource(R.string.settings_title)
-                )
-                Spacer(Modifier.size(8.dp))
-                BrassCircleButton(
-                    onClick = vm::openMarket,
-                    icon = Icons.Filled.Storefront,
-                    label = stringResource(R.string.market_title)
                 )
                 Spacer(Modifier.size(8.dp))
                 if (state.isImporting) {

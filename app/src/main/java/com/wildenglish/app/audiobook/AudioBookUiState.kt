@@ -2,13 +2,11 @@ package com.wildenglish.app.audiobook
 
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.Chapter
-import com.wildenglish.app.audiobook.data.MarketCategory
-import com.wildenglish.app.audiobook.data.MarketItem
 import com.wildenglish.app.audiobook.data.VoiceConfig
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
 import com.wildenglish.app.i18n.AppLanguage
 
-enum class Screen { LIBRARY, DETAIL, PLAYER, MARKET, SETTINGS, VOICE, STORAGE, PLAYBACK, LANGUAGE }
+enum class Screen { LIBRARY, DETAIL, PLAYER, SETTINGS, VOICE, STORAGE, PLAYBACK, LANGUAGE }
 
 /** Progress of pre-synthesizing a book's whole voice track into local cache. */
 data class VoicePrepProgress(
@@ -45,19 +43,6 @@ data class AudioBookUiState(
     val voicePrep: Map<String, VoicePrepProgress> = emptyMap(),
     /** Books whose full voice track has been cached locally. */
     val readyVoiceBookIds: Set<String> = emptySet(),
-    /** Books listed by the backend market (browse + download, no purchase). */
-    val marketItems: List<MarketItem> = emptyList(),
-    val marketLoading: Boolean = false,
-    /** Last loaded market page; -1 means nothing loaded yet. */
-    val marketPage: Int = -1,
-    val marketTotalPages: Int = 0,
-    val marketTotalElements: Long = 0,
-    /** Market book id whose EPUB is being downloaded right now. */
-    val downloadingMarketId: Long? = null,
-    /** Categories synced automatically from the backend, used as market filter chips. */
-    val marketCategories: List<MarketCategory> = emptyList(),
-    /** Selected market category id; null means "全部". */
-    val selectedMarketCategoryId: Long? = null,
     /** 全局朗读音色：全书统一，不区分角色。 */
     val voice: VoiceConfig = VoiceConfig.DEFAULT,
     /** 配音文件存储方式（自动 / 内部 / 外部 / 自定义目录）。 */
@@ -81,7 +66,4 @@ data class AudioBookUiState(
     val currentBook: Audiobook? get() = books.firstOrNull { it.id == currentBookId }
     val currentChapter: Chapter? get() = currentBook?.chapters?.getOrNull(chapterIndex)
     val hasActivePlayer: Boolean get() = audioMode || sentences.isNotEmpty()
-
-    /** Whether another market page can be fetched. */
-    val marketHasMore: Boolean get() = marketPage >= 0 && marketPage + 1 < marketTotalPages
 }

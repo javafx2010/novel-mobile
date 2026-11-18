@@ -10,9 +10,6 @@ import com.wildenglish.app.audiobook.data.AppSettings
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.AudiobookLibrary
 import com.wildenglish.app.audiobook.data.ImportResult
-import com.wildenglish.app.audiobook.data.MarketApi
-import com.wildenglish.app.audiobook.data.MarketItem
-import com.wildenglish.app.audiobook.data.MarketSyncStore
 import com.wildenglish.app.audiobook.data.VoiceCache
 import com.wildenglish.app.audiobook.data.VoiceStorage
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
@@ -32,8 +29,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.time.LocalDateTime
 
 class AudioBookViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -45,9 +40,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     val state: StateFlow<AudioBookUiState> = _state.asStateFlow()
 
     private var sleepJob: Job? = null
-    private var marketJob: Job? = null
-    private var categoriesJob: Job? = null
-    private var syncJob: Job? = null
 
     init {
         // 第一优先：立刻启动图书加载，首页先出书，其余初始化全部让到首帧之后。
@@ -60,7 +52,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /** 非首屏关键的初始化：设置 / 播放恢复 / 各类 Flow 收集 / 市场同步。 */
+    /** 非首屏关键的初始化：设置 / 播放恢复 / 各类 Flow 收集。 */
     private fun initAfterFirstFrame() {
         AppSettings.init(getApplication())
         // 音色与配音目录属于全局设置，改完界面立即反映（并用于“设置”页展示）。
@@ -123,8 +115,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
         }
-        // 启动时检查后台是否有已下载书的新版本（静默）。
-        syncMarketUpdates()
     }
 
     // ---- Library ----
@@ -174,7 +164,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     /** 多次快速导入串行执行，避免并发写同一本书目录 / 状态互相覆盖导致卡住。 */
     private val importMutex = Mutex()
 
-    /** Shared by the file picker and the market download: import, refresh, open and pre-dub. */
+    /** Shared by the file picker / external share: import, refresh, open and pre-dub. */
     private suspend fun importUri(uri: Uri, navigate: Boolean = true): ImportResult =
         importMutex.withLock {
             runImport({ library.import(uri) }, navigate)
@@ -312,196 +302,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
         }
-    }
-
-    // ---- Market (backend /market: browse + download, no purchase) ----
-
-    fun openMarket() {
-        _state.update { it.copy(screen = Screen.MARKET, error = null) }
-        // 自动同步后台分类 + 检查已下载书的更新版本。
-        loadMarketCategories()
-        syncMarketUpdates()
-        if (_state.value.marketPage < 0 && marketJob?.isActive != true) loadMarket(reset = true)
-    }
-
-    fun refreshMarket() {
-        loadMarketCategories()
-        syncMarketUpdates()
-        loadMarket(reset = true)
-    }
-
-    /** Switches the market filter to a category (null = 全部) and reloads from page 0. */
-    fun selectMarketCategory(categoryId: Long?) {
-        if (_state.value.selectedMarketCategoryId == categoryId) return
-        marketJob?.cancel()
-        _state.update {
-            it.copy(
-                selectedMarketCategoryId = categoryId,
-                marketItems = emptyList(),
-                marketPage = -1,
-                marketTotalPages = 0,
-                marketTotalElements = 0,
-            )
-        }
-        loadMarket(reset = true)
-    }
-
-    /**
-     * Fetches the category list once per entry/refresh. Prefers the market's own list (only
-     * categories that actually have downloadable books, so no dead-end chips); falls back to every
-     * backend category when the backend is older. Best effort, silent on failure.
-     */
-    private fun loadMarketCategories() {
-        if (categoriesJob?.isActive == true) return
-        categoriesJob = viewModelScope.launch {
-            val categories = runCatching {
-                withContext(Dispatchers.IO) { MarketApi.fetchMarketCategories() }
-            }.getOrNull() ?: runCatching {
-                withContext(Dispatchers.IO) { MarketApi.fetchCategories() }
-            }.getOrNull() ?: return@launch
-            _state.update { it.copy(marketCategories = categories) }
-        }
-    }
-
-    /** Loads the first page (reset) or the next page, appending to [AudioBookUiState.marketItems]. */
-    private fun loadMarket(reset: Boolean) {
-        if (marketJob?.isActive == true) return
-        val nextPage = if (reset) 0 else (_state.value.marketPage + 1).coerceAtLeast(0)
-        marketJob = viewModelScope.launch {
-            _state.update { it.copy(marketLoading = true, error = null) }
-            try {
-                val categoryId = _state.value.selectedMarketCategoryId
-                val page = withContext(Dispatchers.IO) {
-                    MarketApi.fetchPage(nextPage, MARKET_PAGE_SIZE, categoryId = categoryId)
-                }
-                _state.update {
-                    it.copy(
-                        marketLoading = false,
-                        marketItems = if (reset) page.items else it.marketItems + page.items,
-                        marketPage = page.page,
-                        marketTotalPages = page.totalPages,
-                        marketTotalElements = page.totalElements,
-                    )
-                }
-                seedKnownItems(page.items)
-            } catch (e: Exception) {
-                _state.update {
-                    it.copy(
-                        marketLoading = false,
-                        error = e.message ?: Strings.get(R.string.error_market_failed)
-                    )
-                }
-            }
-        }
-    }
-
-    /** Called by the grid footer when it becomes visible. */
-    fun loadMoreMarket() {
-        val s = _state.value
-        if (s.marketLoading || !s.marketHasMore) return
-        loadMarket(reset = false)
-    }
-
-    /** Downloads a market book's EPUB and imports it into the local library. */
-    fun downloadMarketBook(item: MarketItem) {
-        if (_state.value.downloadingMarketId != null) return
-        viewModelScope.launch {
-            val result = downloadAndImport(item, navigate = true)
-            if (result is ImportResult.Success) rememberDownloaded(item, result.book.id)
-        }
-    }
-
-    /**
-     * 后台书更新后自动重新下载：遍历从市场下载过的书，按 [MarketItem.updatedAt] 与下载时记录的
-     * 时间比较，发现后台版本更新就静默重新下载并覆盖本地。
-     *
-     * Runs on app start and whenever the market is opened / refreshed.
-     */
-    fun syncMarketUpdates() {
-        if (syncJob?.isActive == true) return
-        syncJob = viewModelScope.launch {
-            // 避开冷启动首屏：让书架先加载显示，再静默检查书城更新。
-            delay(1500)
-            val recorded = runCatching { MarketSyncStore.entries(getApplication()) }
-                .getOrDefault(emptyMap())
-            if (recorded.isEmpty()) return@launch
-            val books = withContext(Dispatchers.IO) { library.listBooks() }
-            for ((marketId, record) in recorded) {
-                if (books.none { it.id == record.localId }) {
-                    // The local copy was deleted: forget the record.
-                    runCatching { MarketSyncStore.remove(getApplication(), marketId) }
-                    continue
-                }
-                // Never replace the book the reader is currently listening to.
-                if (_state.value.currentBookId == record.localId) continue
-                val remote = runCatching {
-                    withContext(Dispatchers.IO) { MarketApi.fetchBook(marketId) }
-                }.getOrNull() ?: continue
-                if (!isNewer(remote.updatedAt, record.updatedAt)) continue
-                val result = downloadAndImport(remote, navigate = false)
-                if (result is ImportResult.Success) rememberDownloaded(remote, result.book.id)
-            }
-        }
-    }
-
-    /** Downloads [item] into the cache and imports it; returns null when the download failed. */
-    private suspend fun downloadAndImport(item: MarketItem, navigate: Boolean): ImportResult? {
-        if (_state.value.downloadingMarketId != null) return null
-        _state.update { it.copy(downloadingMarketId = item.id, error = null) }
-        val file = try {
-            withContext(Dispatchers.IO) {
-                val dir = File(getApplication<Application>().cacheDir, "market").apply { mkdirs() }
-                MarketApi.download(item, File(dir, "market-${item.id}.epub"))
-            }
-        } catch (e: Exception) {
-            _state.update {
-                it.copy(
-                    downloadingMarketId = null,
-                    error = e.message ?: Strings.get(R.string.error_download_failed),
-                )
-            }
-            return null
-        }
-        return try {
-            // Reuse the normal import flow: sniff EPUB/JPD, unpack, (maybe open), pre-dub.
-            importUri(Uri.fromFile(file), navigate)
-        } finally {
-            file.delete()
-            _state.update { it.copy(downloadingMarketId = null) }
-        }
-    }
-
-    /** Records the backend updatedAt of a downloaded book so newer versions can be detected. */
-    private fun rememberDownloaded(item: MarketItem, localId: String) {
-        val updatedAt = item.updatedAt ?: return
-        runCatching { MarketSyncStore.put(getApplication(), item.id, updatedAt, localId) }
-    }
-
-    /**
-     * First-sight baseline: a market book that matches a local book but has no record yet gets the
-     * backend's current updatedAt recorded, so future backend updates can be detected. No download
-     * happens here, so switching to this feature never re-downloads the whole shelf.
-     */
-    private fun seedKnownItems(items: List<MarketItem>) {
-        if (items.isEmpty()) return
-        val books = _state.value.books
-        if (books.isEmpty()) return
-        for (item in items) {
-            val updatedAt = item.updatedAt ?: continue
-            if (MarketSyncStore.get(getApplication(), item.id) != null) continue
-            val local = books.firstOrNull {
-                it.title == item.title && (it.author ?: "") == (item.author ?: "")
-            } ?: continue
-            runCatching { MarketSyncStore.put(getApplication(), item.id, updatedAt, local.id) }
-        }
-    }
-
-    /** True when [remote] is strictly newer than [recorded] (ISO local date-time, string fallback). */
-    private fun isNewer(remote: String?, recorded: String): Boolean {
-        if (remote.isNullOrBlank() || recorded.isBlank()) return false
-        val r = runCatching { LocalDateTime.parse(remote) }.getOrNull()
-        val l = runCatching { LocalDateTime.parse(recorded) }.getOrNull()
-        return if (r != null && l != null) r.isAfter(l) else remote > recorded
     }
 
     // ---- Offline voice preparation (delegated to the resident service) ----
@@ -685,7 +485,6 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             Screen.DETAIL -> _state.update {
                 it.copy(screen = Screen.LIBRARY, books = library.sortByRecentAccess(it.books))
             }
-            Screen.MARKET -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.SETTINGS -> _state.update { it.copy(screen = Screen.LIBRARY) }
             Screen.VOICE -> _state.update { it.copy(screen = Screen.SETTINGS) }
             Screen.STORAGE -> _state.update { it.copy(screen = Screen.SETTINGS) }
@@ -715,7 +514,4 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
         super.onCleared()
     }
 
-    private companion object {
-        const val MARKET_PAGE_SIZE = 20
-    }
 }

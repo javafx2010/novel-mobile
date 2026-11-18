@@ -18,12 +18,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -39,7 +36,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.data.CoverThumbCache
-import com.wildenglish.app.audiobook.data.MarketApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -77,21 +73,6 @@ fun rememberCover(file: File?): ImageBitmap? {
             null
         } else {
             loadBitmap(context, key, file)
-        }
-    }
-    return image
-}
-
-/** Loads a cover bitmap over the network (cached to file by [MarketApi.fetchBitmap]). */
-@Composable
-fun rememberRemoteCover(url: String?): ImageBitmap? {
-    if (url.isNullOrBlank()) return null
-    val context = LocalContext.current.applicationContext
-    var image by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(url) {
-        if (image == null) {
-            val loaded = MarketApi.fetchBitmap(context, url)
-            if (loaded != null) image = loaded
         }
     }
     return image
