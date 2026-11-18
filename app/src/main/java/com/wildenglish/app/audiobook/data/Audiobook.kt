@@ -1,5 +1,7 @@
 package com.wildenglish.app.audiobook.data
 
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import org.json.JSONObject
 import java.io.File
 
@@ -48,23 +50,28 @@ object ManifestParser {
      */
     fun validate(dir: File): String? {
         val manifestFile = File(dir, "manifest.json")
-        if (!manifestFile.isFile) return "压缩包缺少 manifest.json"
+        if (!manifestFile.isFile) return Strings.get(R.string.import_manifest_missing)
         val root = runCatching { JSONObject(manifestFile.readText(Charsets.UTF_8)) }.getOrNull()
-            ?: return "manifest.json 不是合法的 JSON"
+            ?: return Strings.get(R.string.manifest_bad_json)
 
-        if (root.optString("format", FORMAT) != FORMAT) return "format 必须为 $FORMAT"
-        if (root.optInt("version", VERSION) > VERSION) return "version 高于 $VERSION，当前版本不支持"
-        if (root.optString("title").isBlank()) return "title 不能为空"
+        if (root.optString("format", FORMAT) != FORMAT) {
+            return Strings.get(R.string.manifest_format, FORMAT)
+        }
+        if (root.optInt("version", VERSION) > VERSION) {
+            return Strings.get(R.string.manifest_version_high, VERSION)
+        }
+        if (root.optString("title").isBlank()) return Strings.get(R.string.manifest_title_empty)
 
-        val chapters = root.optJSONArray("chapters") ?: return "chapters 不能为空"
-        if (chapters.length() == 0) return "chapters 至少需要 1 章"
+        val chapters = root.optJSONArray("chapters")
+            ?: return Strings.get(R.string.manifest_chapters_empty)
+        if (chapters.length() == 0) return Strings.get(R.string.manifest_chapters_empty)
         for (i in 0 until chapters.length()) {
             val c = chapters.optJSONObject(i) ?: continue
             val text = resolveSafe(dir, c.optString("text"))?.takeIf { it.isFile }
             val cues = resolveSafe(dir, c.optString("cues"))?.takeIf { it.isFile }
             val audio = resolveSafe(dir, c.optString("audio"))?.takeIf { it.isFile }
             if (text == null && cues == null && audio == null) {
-                return "第 ${i + 1} 章缺少内容：请提供 audio（MP3）或 text / cues（字幕）"
+                return Strings.get(R.string.manifest_chapter_missing, i + 1)
             }
         }
         return null
@@ -95,7 +102,7 @@ object ManifestParser {
                 ?: textFile?.nameWithoutExtension
                 ?: cuesFile?.nameWithoutExtension
                 ?: audioFile?.nameWithoutExtension
-                ?: "第 ${chapters.size + 1} 章"
+                ?: Strings.get(R.string.chapter_title_default, chapters.size + 1)
             val duration = if (c.has("durationSeconds") && !c.isNull("durationSeconds")) {
                 c.optInt("durationSeconds")
             } else {
@@ -150,7 +157,7 @@ object ManifestParser {
             val chapterTitle = c.optString("title").takeIf { it.isNotBlank() }
                 ?: textFile?.nameWithoutExtension
                 ?: audioFile?.nameWithoutExtension
-                ?: "第 ${chapters.size + 1} 章"
+                ?: Strings.get(R.string.chapter_title_default, chapters.size + 1)
             val duration = if (c.has("durationSeconds") && !c.isNull("durationSeconds")) {
                 c.optInt("durationSeconds")
             } else null

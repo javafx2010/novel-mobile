@@ -6,8 +6,9 @@ import com.wildenglish.app.audiobook.data.MarketCategory
 import com.wildenglish.app.audiobook.data.MarketItem
 import com.wildenglish.app.audiobook.data.VoiceConfig
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
+import com.wildenglish.app.i18n.AppLanguage
 
-enum class Screen { LIBRARY, DETAIL, PLAYER, MARKET, SETTINGS, VOICE, STORAGE, PLAYBACK }
+enum class Screen { LIBRARY, DETAIL, PLAYER, MARKET, SETTINGS, VOICE, STORAGE, PLAYBACK, LANGUAGE }
 
 /** Progress of pre-synthesizing a book's whole voice track into local cache. */
 data class VoicePrepProgress(
@@ -61,6 +62,10 @@ data class AudioBookUiState(
     val voice: VoiceConfig = VoiceConfig.DEFAULT,
     /** 配音文件存储方式（自动 / 内部 / 外部 / 自定义目录）。 */
     val storageMode: VoiceStorageMode = VoiceStorageMode.AUTO,
+    /** 界面语言（AUTO 跟随系统）。 */
+    val language: AppLanguage = AppLanguage.AUTO,
+    /** 语言切换后自增，宿主 Activity 据此重建以刷新资源。 */
+    val languageChangeToken: Int = 0,
     /** 自定义目录的 SAF tree uri。 */
     val customTreeUri: String? = null,
     /** 当前实际写入配音文件的目录，展示在设置页。 */

@@ -41,12 +41,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.wildenglish.app.R
 
 internal val SetTop = Color(0xFF14110E)
 internal val SetBottom = Color(0xFF070605)
@@ -106,7 +108,7 @@ internal fun SettingsScaffold(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "返回",
+                        contentDescription = stringResource(R.string.back),
                         tint = SetBrassLight,
                         modifier = Modifier.size(26.dp),
                     )
@@ -227,23 +229,35 @@ internal fun SettingsEntryRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 15.sp, color = SetCream)
-            if (hint != null) {
+            Text(
+                title,
+                fontSize = 15.sp,
+                color = SetCream,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!hint.isNullOrBlank()) {
                 Text(
                     hint,
                     fontSize = 12.sp,
                     color = SetBrass.copy(alpha = 0.65f),
-                    modifier = Modifier.padding(top = 2.dp)
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }
+        // Cap the value at its share of the row; a long localized label must not squeeze
+        // the title column down to a single character (which wraps text vertically).
         Text(
             value,
             fontSize = 13.sp,
             color = SetBrassLight.copy(alpha = 0.9f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(end = 6.dp),
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .padding(end = 6.dp),
         )
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -296,12 +310,14 @@ internal fun SettingsRadioRow(
         }
         Column(Modifier.padding(start = 14.dp)) {
             Text(label, fontSize = 15.sp, color = SetCream)
-            Text(
-                hint,
-                fontSize = 12.sp,
-                color = SetBrass.copy(alpha = 0.65f),
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            if (hint.isNotBlank()) {
+                Text(
+                    hint,
+                    fontSize = 12.sp,
+                    color = SetBrass.copy(alpha = 0.65f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
     }
 }

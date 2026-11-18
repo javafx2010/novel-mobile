@@ -3,6 +3,8 @@ package com.wildenglish.app.audiobook.data
 import android.content.Context
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -75,8 +77,11 @@ object MarketApi {
             "${BASE_URL}/market/books?language=$language&sort=update&page=$page&size=$size$category"
         val request = Request.Builder().url(url).header("Accept", "application/json").build()
         client.newCall(request).execute().use { resp ->
-            if (!resp.isSuccessful) throw IOException("市场加载失败（HTTP ${resp.code}）")
-            val body = resp.body?.string() ?: throw IOException("市场返回为空")
+            if (!resp.isSuccessful) {
+                throw IOException(Strings.get(R.string.market_http_error, resp.code))
+            }
+            val body = resp.body?.string()
+                ?: throw IOException(Strings.get(R.string.market_empty_response))
             parsePage(body)
         }
     }
@@ -87,7 +92,9 @@ object MarketApi {
             val url = "${BASE_URL}/categories?language=$language"
             val request = Request.Builder().url(url).header("Accept", "application/json").build()
             client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw IOException("分类加载失败（HTTP ${resp.code}）")
+                if (!resp.isSuccessful) {
+                    throw IOException(Strings.get(R.string.category_http_error, resp.code))
+                }
                 val body = resp.body?.string() ?: return@use emptyList()
                 parseCategories(body)
             }
@@ -136,10 +143,12 @@ object MarketApi {
 
     /** Downloads one market book's EPUB to [dest] and returns the saved file. */
     suspend fun download(item: MarketItem, dest: File): File = withContext(Dispatchers.IO) {
-        if (item.downloadUrl.isBlank()) throw IOException("下载地址为空")
+        if (item.downloadUrl.isBlank()) throw IOException(Strings.get(R.string.download_url_empty))
         client.newCall(Request.Builder().url(item.downloadUrl).build()).execute().use { resp ->
-            if (!resp.isSuccessful) throw IOException("下载失败（HTTP ${resp.code}）")
-            val body = resp.body ?: throw IOException("下载内容为空")
+            if (!resp.isSuccessful) {
+                throw IOException(Strings.get(R.string.download_http_error, resp.code))
+            }
+            val body = resp.body ?: throw IOException(Strings.get(R.string.download_empty))
             dest.parentFile?.mkdirs()
             body.byteStream().use { input ->
                 dest.outputStream().use { output -> input.copyTo(output) }

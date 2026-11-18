@@ -1,5 +1,7 @@
 package com.wildenglish.app.audiobook.data
 
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -41,11 +43,11 @@ object JpdCodec {
     fun decrypt(src: InputStream): InputStream {
         val all = src.use { it.readBytes() }
         if (all.size < HEADER_SIZE + 16) {
-            throw IOException("文件过短，不是有效的 .jpd 加密包")
+            throw IOException(Strings.get(R.string.jpd_short))
         }
         for (i in MAGIC.indices) {
             if (all[i] != MAGIC[i]) {
-                throw IOException("不是有效的 .jpd 加密包，请用 PackJpd 生成")
+                throw IOException(Strings.get(R.string.jpd_invalid))
             }
         }
         val salt = all.copyOfRange(4, 20)
@@ -56,7 +58,7 @@ object JpdCodec {
             cipher.init(Cipher.DECRYPT_MODE, deriveKey(salt), GCMParameterSpec(128, iv))
             cipher.doFinal(ciphertext)
         } catch (e: Exception) {
-            throw IOException(".jpd 解密失败（密钥不匹配或文件已损坏）：${e.message}")
+            throw IOException(Strings.get(R.string.jpd_decrypt_failed, e.message ?: ""))
         }
         return ByteArrayInputStream(zipBytes)
     }

@@ -3,6 +3,8 @@ package com.wildenglish.app.audiobook.data
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import java.io.File
 import java.util.UUID
 
@@ -172,7 +174,9 @@ class SafVoiceStore(context: Context, treeUri: Uri) : VoiceStore {
     val isUsable: Boolean = runCatching { root?.canWrite() == true }.getOrDefault(false)
 
     override val label: String
-        get() = runCatching { root?.name }.getOrNull()?.let { "自定义目录：$it" } ?: "自定义目录"
+        get() = runCatching { root?.name }.getOrNull()
+            ?.let { Strings.get(R.string.voice_custom_dir, it) }
+            ?: Strings.get(R.string.storage_custom)
 
     /** Cached handles: bookId or "bookId/cN" -> directory (null = known missing). */
     private val dirs = HashMap<String, DocumentFile?>()
@@ -371,7 +375,7 @@ object VoiceStorage {
                 if (volume != null && writable(volume)) {
                     Resolved(FileVoiceStore(File(volume, AppStorage.VOICE_CACHE_DIR)))
                 } else {
-                    Resolved(internal, "外部存储不可写，已临时改用应用内部存储")
+                    Resolved(internal, Strings.get(R.string.voice_storage_no_ext))
                 }
             }
 
@@ -384,8 +388,11 @@ object VoiceStorage {
                 } else {
                     Resolved(
                         internal,
-                        if (settings.customTreeUri == null) "尚未选择自定义目录，已使用应用内部存储"
-                        else "自定义目录已失效（权限被回收或目录被删除），已临时改用应用内部存储",
+                        if (settings.customTreeUri == null) {
+                            Strings.get(R.string.voice_storage_no_custom)
+                        } else {
+                            Strings.get(R.string.voice_storage_custom_invalid)
+                        },
                     )
                 }
             }

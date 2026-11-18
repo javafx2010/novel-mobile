@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,7 +77,7 @@ fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             GlassIconButton(onClick = vm::goBack, dark = dark) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "返回",
+                    contentDescription = stringResource(R.string.back),
                 )
             }
             Column(
@@ -85,7 +86,7 @@ fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                     .padding(horizontal = 6.dp),
             ) {
                 Text(
-                    "图书市场",
+                    stringResource(R.string.market_title),
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp,
@@ -93,9 +94,12 @@ fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 )
                 Text(
                     if (state.marketTotalElements > 0) {
-                        "共 ${state.marketTotalElements} 本 · 点击封面下载到本地"
+                        stringResource(
+                            R.string.market_total,
+                            state.marketTotalElements,
+                        )
                     } else {
-                        "从服务器下载图书到本地"
+                        stringResource(R.string.market_hint)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -104,7 +108,7 @@ fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             GlassIconButton(onClick = vm::refreshMarket, dark = dark) {
                 Icon(
                     imageVector = Icons.Filled.Refresh,
-                    contentDescription = "刷新",
+                    contentDescription = stringResource(R.string.market_refresh),
                 )
             }
         }
@@ -118,7 +122,7 @@ fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 CategoryChip(
-                    label = "全部",
+                    label = stringResource(R.string.all),
                     selected = state.selectedMarketCategoryId == null,
                     onClick = { vm.selectMarketCategory(null) },
                 )
@@ -150,16 +154,19 @@ fun MarketScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                         .firstOrNull { it.id == state.selectedMarketCategoryId }
                     if (selected != null) {
                         CenteredMessage(
-                            title = "「${selected.name}」暂无可下载图书",
-                            hint = "该分类下的书还没有可下载的 EPUB 文件。",
-                            actionLabel = "查看全部",
+                            title = stringResource(
+                                R.string.market_category_empty,
+                                selected.name,
+                            ),
+                            hint = stringResource(R.string.market_category_hint),
+                            actionLabel = stringResource(R.string.market_view_all),
                             onAction = { vm.selectMarketCategory(null) },
                         )
                     } else {
                         CenteredMessage(
-                            title = "市场暂无图书",
-                            hint = "服务器上还没有可下载的图书，稍后再试或点刷新。",
-                            actionLabel = "刷新",
+                            title = stringResource(R.string.market_empty_title),
+                            hint = stringResource(R.string.market_empty_hint),
+                            actionLabel = stringResource(R.string.market_refresh),
                             onAction = vm::refreshMarket,
                         )
                     }
@@ -291,17 +298,19 @@ private fun MarketTile(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            item.author ?: "${item.chapterCount} 章",
+            item.author ?: stringResource(R.string.chapter_count, item.chapterCount),
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         val status = when {
-            inLibrary -> "已在书架"
-            downloading -> "下载中…"
-            item.fileSize != null -> formatBytes(item.fileSize) + " · 点击下载"
-            else -> "点击下载"
+            inLibrary -> stringResource(R.string.market_in_shelf)
+            downloading -> stringResource(R.string.market_downloading)
+            item.fileSize != null -> formatBytes(item.fileSize) +
+                    stringResource(R.string.market_download_suffix)
+
+            else -> stringResource(R.string.market_download)
         }
         Text(
             status,

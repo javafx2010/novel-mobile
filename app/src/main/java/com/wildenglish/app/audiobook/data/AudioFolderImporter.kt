@@ -1,5 +1,7 @@
 package com.wildenglish.app.audiobook.data
 
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -38,15 +40,17 @@ object AudioFolderImporter {
      */
     fun convert(src: File, dest: File): String? {
         val files = filesOf(src)
-        if (files.isEmpty()) return "压缩包是空的"
+        if (files.isEmpty()) return Strings.get(R.string.import_empty_zip)
         val audios = files.filter { it.extension.lowercase() in AUDIO_EXTENSIONS }
-        if (audios.isEmpty()) return "压缩包里没有可播放的音频文件"
+        if (audios.isEmpty()) return Strings.get(R.string.import_no_playable_audio)
 
         for (file in files) {
             val target = File(dest, file.relativeTo(src).path)
             target.parentFile?.mkdirs()
             runCatching { file.copyTo(target, overwrite = true) }
-                .onFailure { return "解包音频失败：${it.message ?: file.name}" }
+                .onFailure {
+                    return "${Strings.get(R.string.import_bad_zip)}: ${it.message ?: file.name}"
+                }
         }
 
         val copied = files.map { File(dest, it.relativeTo(src).path) }
@@ -73,7 +77,7 @@ object AudioFolderImporter {
         val title = firstTags?.album
             ?: wrapperName
             ?: firstTags?.title?.takeIf { destAudios.size == 1 }
-            ?: "有声书"
+            ?: Strings.get(R.string.audiobook)
 
         val root = JSONObject()
         root.put("format", ManifestParser.FORMAT)
@@ -87,7 +91,9 @@ object AudioFolderImporter {
         return runCatching {
             File(dest, "manifest.json").writeText(root.toString(2), Charsets.UTF_8)
             null
-        }.getOrElse { "写入清单失败：${it.message ?: "未知错误"}" }
+        }.getOrElse {
+            "${Strings.get(R.string.error_unknown)}: ${it.message ?: Strings.get(R.string.error_unknown)}"
+        }
     }
 
     private fun filesOf(src: File): List<File> =

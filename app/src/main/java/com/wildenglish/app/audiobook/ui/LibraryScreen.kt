@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
 import com.wildenglish.app.audiobook.data.Audiobook
@@ -120,14 +122,14 @@ fun LibraryScreen(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "图书库",
+                        stringResource(R.string.library_title),
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
                         fontSize = 34.sp,
                         color = LibCream,
                     )
                     Text(
-                        "有声书 · ${state.books.size} 部",
+                        stringResource(R.string.library_subtitle, state.books.size),
                         fontSize = 13.sp,
                         letterSpacing = 1.sp,
                         color = LibBrass.copy(alpha = 0.85f),
@@ -136,13 +138,13 @@ fun LibraryScreen(
                 BrassCircleButton(
                     onClick = vm::openSettings,
                     icon = Icons.Filled.Settings,
-                    label = "设置"
+                    label = stringResource(R.string.settings_title)
                 )
                 Spacer(Modifier.size(8.dp))
                 BrassCircleButton(
                     onClick = vm::openMarket,
                     icon = Icons.Filled.Storefront,
-                    label = "图书市场"
+                    label = stringResource(R.string.market_title)
                 )
                 Spacer(Modifier.size(8.dp))
                 if (state.isImporting) {
@@ -154,7 +156,11 @@ fun LibraryScreen(
                         )
                     }
                 } else {
-                    BrassCircleButton(onClick = onImport, icon = Icons.Filled.Add, label = "导入")
+                    BrassCircleButton(
+                        onClick = onImport,
+                        icon = Icons.Filled.Add,
+                        label = stringResource(R.string.import_action),
+                    )
                 }
             }
 
@@ -205,14 +211,14 @@ fun LibraryScreen(
             containerColor = Color(0xFF1D1711),
             title = {
                 Text(
-                    "删除《${book.title}》？",
+                    stringResource(R.string.delete_confirm, book.title),
                     color = LibCream,
                     fontFamily = FontFamily.Serif,
                 )
             },
             text = {
                 Text(
-                    "将从本地移除该书及其封面、文稿与离线配音。",
+                    stringResource(R.string.delete_hint),
                     color = LibCream.copy(alpha = 0.7f)
                 )
             },
@@ -220,12 +226,12 @@ fun LibraryScreen(
                 TextButton(onClick = {
                     bookToDelete = null
                     vm.deleteBook(book)
-                }) { Text("删除", color = Color(0xFFFF8A80)) }
+                }) { Text(stringResource(R.string.delete), color = Color(0xFFFF8A80)) }
             },
             dismissButton = {
                 TextButton(onClick = { bookToDelete = null }) {
                     Text(
-                        "取消",
+                        stringResource(R.string.cancel),
                         color = LibBrassLight
                     )
                 }
@@ -296,7 +302,11 @@ private fun LibraryLoading() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(color = LibBrass, strokeWidth = 2.dp)
             Spacer(Modifier.height(12.dp))
-            Text("正在翻开唱片架…", fontSize = 13.sp, color = LibBrassLight.copy(alpha = 0.8f))
+            Text(
+                stringResource(R.string.library_loading),
+                fontSize = 13.sp,
+                color = LibBrassLight.copy(alpha = 0.8f),
+            )
         }
     }
 }
@@ -311,7 +321,7 @@ private fun LibraryEmpty(error: String?, onImport: () -> Unit) {
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            "唱片架还是空的",
+            stringResource(R.string.library_empty_title),
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
@@ -319,7 +329,7 @@ private fun LibraryEmpty(error: String?, onImport: () -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "导入 .epub 图书、.jpd 有声书，或直接分享 MP3 文件，即可开始收听。",
+            stringResource(R.string.library_empty_hint),
             fontSize = 13.sp,
             lineHeight = 20.sp,
             color = LibCream.copy(alpha = 0.65f),
@@ -330,7 +340,7 @@ private fun LibraryEmpty(error: String?, onImport: () -> Unit) {
             Text(error, fontSize = 12.sp, color = Color(0xFFFF8A80), textAlign = TextAlign.Center)
         }
         Spacer(Modifier.height(20.dp))
-        BrassPill(label = "导入图书 / 音频", onClick = onImport)
+        BrassPill(label = stringResource(R.string.import_title), onClick = onImport)
     }
 }
 
@@ -426,7 +436,7 @@ private fun SleeveTile(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            book.author ?: "${book.chapterCount} 章",
+            book.author ?: stringResource(R.string.chapter_count, book.chapterCount),
             fontSize = 12.sp,
             color = LibBrass.copy(alpha = 0.75f),
             maxLines = 1,

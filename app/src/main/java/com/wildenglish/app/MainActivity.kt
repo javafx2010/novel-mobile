@@ -2,6 +2,7 @@ package com.wildenglish.app
 
 import android.Manifest
 import android.app.KeyguardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -20,6 +21,7 @@ import com.wildenglish.app.audiobook.playback.PlaybackCenter
 import com.wildenglish.app.audiobook.playback.VoicePrepCenter
 import com.wildenglish.app.audiobook.ui.AudioBookApp
 import com.wildenglish.app.audiobook.ui.LockDisplayActivity
+import com.wildenglish.app.i18n.LocaleHelper
 import com.wildenglish.app.ui.theme.AudioBookTheme
 
 class MainActivity : ComponentActivity() {
@@ -29,6 +31,10 @@ class MainActivity : ComponentActivity() {
 
     private val requestNotifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

@@ -5,6 +5,8 @@ import android.media.MediaPlayer
 import android.media.PlaybackParams
 import android.os.Handler
 import android.os.Looper
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import java.io.File
 
 /**
@@ -97,7 +99,7 @@ class AudioFilePlayer(private val callback: Callback) {
                     handler.removeCallbacks(ticker)
                     releasePlayer()
                     callback.onPlayingChanged(false)
-                    callback.onError("音频播放失败 ($what/$extra)")
+                    callback.onError(Strings.get(R.string.audio_error, what, extra))
                 }
                 true
             }
@@ -106,7 +108,9 @@ class AudioFilePlayer(private val callback: Callback) {
             releasePlayer()
             prepared = false
             playing = false
-            callback.onError("无法播放音频：" + (e.message ?: file.name))
+            callback.onError(
+                Strings.get(R.string.audio_play_failed, e.message ?: file.name)
+            )
         }
     }
 

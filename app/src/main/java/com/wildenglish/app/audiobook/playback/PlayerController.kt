@@ -7,6 +7,8 @@ import android.media.PlaybackParams
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import java.io.IOException
 
 class PlayerController(appContext: Context, private val callback: Callback) {
@@ -72,16 +74,24 @@ class PlayerController(appContext: Context, private val callback: Callback) {
             p.setOnPreparedListener { mp -> if (token == generation) onPreparedLocked(mp) }
             p.setOnCompletionListener { if (token == generation) onCompletionLocked() }
             p.setOnErrorListener { _, what, extra ->
-                if (token == generation) failLocked("播放错误 (" + what + "/" + extra + ")")
+                if (token == generation) {
+                    failLocked(Strings.get(R.string.player_error, what, extra))
+                }
                 true
             }
             p.prepareAsync()
         } catch (e: IOException) {
-            if (token == generation) failLocked("无法加载音频：" + e.message)
+            if (token == generation) {
+                failLocked(Strings.get(R.string.audio_load_failed, e.message ?: ""))
+            }
         } catch (e: IllegalStateException) {
-            if (token == generation) failLocked("播放器状态异常：" + e.message)
+            if (token == generation) {
+                failLocked(Strings.get(R.string.player_state_error, e.message ?: ""))
+            }
         } catch (e: IllegalArgumentException) {
-            if (token == generation) failLocked("音频地址无效：" + e.message)
+            if (token == generation) {
+                failLocked(Strings.get(R.string.audio_invalid_url, e.message ?: ""))
+            }
         }
     }
 
@@ -159,7 +169,9 @@ class PlayerController(appContext: Context, private val callback: Callback) {
         try {
             p.start()
         } catch (e: IllegalStateException) {
-            postMain { callback.onError("播放启动失败：" + e.message) }
+            postMain {
+                callback.onError(Strings.get(R.string.player_start_failed, e.message ?: ""))
+            }
             return
         }
         playing = true

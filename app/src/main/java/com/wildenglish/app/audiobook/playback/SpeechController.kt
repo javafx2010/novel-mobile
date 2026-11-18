@@ -8,10 +8,12 @@ import android.media.PlaybackParams
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.data.AppSettings
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.VoiceCache
 import com.wildenglish.app.audiobook.data.VoiceConfig
+import com.wildenglish.app.i18n.Strings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -237,7 +239,7 @@ class SpeechController(
             val audio = awaitAudio(run, index)
             io.post {
                 if (released || gen != generation || !playing || index != currentIndex) return@post
-                if (audio == null) fail(gen, "语音合成失败，请检查网络或稍后重试")
+                if (audio == null) fail(gen, Strings.get(R.string.speech_failed))
                 else finalizeSynthesis(gen, run, index, audio)
             }
         }
@@ -315,7 +317,7 @@ class SpeechController(
                 io.post { if (gen == generation && playing && !released) advance(gen, run) }
             }
             mp.setOnErrorListener { _, what, extra ->
-                fail(gen, "语音播放失败 ($what/$extra)")
+                fail(gen, Strings.get(R.string.speech_playback_error, what, extra))
                 true
             }
             mp.prepare()
@@ -333,7 +335,13 @@ class SpeechController(
             prefetch(gen, run, index + 1, index + 2)
         } catch (e: Exception) {
             stopPlayerLocked()
-            fail(gen, "语音播放失败：" + (e.message ?: "音频数据无效"))
+            fail(
+                gen,
+                Strings.get(
+                    R.string.speech_playback_failed,
+                    e.message ?: Strings.get(R.string.audio_data_invalid),
+                ),
+            )
         }
     }
 

@@ -1,6 +1,8 @@
 package com.wildenglish.app.audiobook.data
 
 import android.content.Context
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -112,7 +114,7 @@ object VoiceCache {
     }
 
     private fun reportWriteFailure(store: VoiceStore) {
-        _error.value = "配音文件保存失败：${store.label} 无法写入。" +
-                "请在「设置 → 配音存储」中更换目录，或检查存储卡是否已满/被拔出。"
+        _error.value = Strings.get(R.string.voice_save_failed_detail, store.label) +
+                " " + Strings.get(R.string.voice_change_dir_hint)
     }
 }

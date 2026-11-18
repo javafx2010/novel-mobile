@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.data.AppSettings
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.AudiobookLibrary
@@ -17,6 +18,9 @@ import com.wildenglish.app.audiobook.data.VoiceStorage
 import com.wildenglish.app.audiobook.data.VoiceStorageMode
 import com.wildenglish.app.audiobook.playback.PlaybackCenter
 import com.wildenglish.app.audiobook.playback.VoicePrepCenter
+import com.wildenglish.app.i18n.AppLanguage
+import com.wildenglish.app.i18n.LocaleHelper
+import com.wildenglish.app.i18n.Strings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -35,7 +39,9 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val library = AudiobookLibrary(application)
 
-    private val _state = MutableStateFlow(AudioBookUiState())
+    private val _state = MutableStateFlow(
+        AudioBookUiState(language = LocaleHelper.current(application))
+    )
     val state: StateFlow<AudioBookUiState> = _state.asStateFlow()
 
     private var sleepJob: Job? = null
@@ -136,7 +142,9 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(error = e.message ?: "书库加载失败") }
+                _state.update {
+                    it.copy(error = e.message ?: Strings.get(R.string.error_library_failed))
+                }
             } finally {
                 _state.update { it.copy(isLoading = false) }
             }
@@ -188,10 +196,10 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 it.copy(
                     isImporting = false,
                     isLoading = false,
-                    error = e.message ?: "导入失败",
+                    error = e.message ?: Strings.get(R.string.error_import_failed),
                 )
             }
-            ImportResult.Failure(e.message ?: "导入失败")
+            ImportResult.Failure(e.message ?: Strings.get(R.string.error_import_failed))
         }
         when (result) {
             is ImportResult.Success -> {
@@ -380,7 +388,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.update {
                     it.copy(
                         marketLoading = false,
-                        error = e.message ?: "市场加载失败"
+                        error = e.message ?: Strings.get(R.string.error_market_failed)
                     )
                 }
             }
@@ -447,7 +455,10 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             }
         } catch (e: Exception) {
             _state.update {
-                it.copy(downloadingMarketId = null, error = e.message ?: "下载失败")
+                it.copy(
+                    downloadingMarketId = null,
+                    error = e.message ?: Strings.get(R.string.error_download_failed),
+                )
             }
             return null
         }
@@ -510,6 +521,17 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun openPlaybackSettings() =
         _state.update { it.copy(screen = Screen.PLAYBACK, error = null) }
+
+    fun openLanguage() = _state.update { it.copy(screen = Screen.LANGUAGE, error = null) }
+
+    /** 切换界面语言：持久化到偏好，宿主 Activity 结束自身，用户重进时加载新资源。 */
+    fun setLanguage(language: AppLanguage) {
+        if (_state.value.language == language) return
+        LocaleHelper.set(getApplication(), language)
+        _state.update {
+            it.copy(language = language, languageChangeToken = it.languageChangeToken + 1)
+        }
+    }
 
     /**
      * 换朗读音色。整本书统一用这个音色，已缓存的音频是按旧音色生成的，
@@ -668,6 +690,7 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
             Screen.VOICE -> _state.update { it.copy(screen = Screen.SETTINGS) }
             Screen.STORAGE -> _state.update { it.copy(screen = Screen.SETTINGS) }
             Screen.PLAYBACK -> _state.update { it.copy(screen = Screen.SETTINGS) }
+            Screen.LANGUAGE -> _state.update { it.copy(screen = Screen.SETTINGS) }
             Screen.LIBRARY -> Unit
         }
     }

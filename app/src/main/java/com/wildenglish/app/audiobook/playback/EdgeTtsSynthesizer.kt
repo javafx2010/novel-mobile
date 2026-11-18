@@ -1,6 +1,8 @@
 package com.wildenglish.app.audiobook.playback
 
 import android.util.Log
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -165,8 +167,9 @@ class EdgeTtsSynthesizer {
                     }
                     complete(
                         SynthResult.Fail(
-                            "语音合成失败（HTTP ${code ?: "?"}）：" +
-                                    (t.message?.take(120) ?: "网络或微软语音服务不可用"),
+                            Strings.get(R.string.speech_http_error, code?.toString() ?: "?") +
+                                    (t.message?.take(120)
+                                        ?: Strings.get(R.string.network_unavailable)),
                             code, date
                         )
                     )
@@ -175,7 +178,9 @@ class EdgeTtsSynthesizer {
                 private fun completeFromClose() {
                     val bytes = synchronized(audio) { audio.toByteArray() }
                     complete(
-                        if (bytes.isEmpty()) SynthResult.Fail("连接提前关闭，未收到音频", null, null)
+                        if (bytes.isEmpty()) {
+                            SynthResult.Fail(Strings.get(R.string.connection_closed), null, null)
+                        }
                         else SynthResult.Ok(bytes)
                     )
                 }
@@ -196,7 +201,11 @@ class EdgeTtsSynthesizer {
             try {
                 socket = client.newWebSocket(request, listener)
             } catch (e: Exception) {
-                complete(SynthResult.Fail("无法连接语音服务：" + (e.message ?: ""), null, null))
+                complete(
+                    SynthResult.Fail(
+                        Strings.get(R.string.connect_failed, e.message ?: ""), null, null
+                    )
+                )
                 return@suspendCancellableCoroutine
             }
             cont.invokeOnCancellation {

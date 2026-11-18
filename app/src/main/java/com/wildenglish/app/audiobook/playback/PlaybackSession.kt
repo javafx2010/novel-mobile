@@ -18,6 +18,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.wildenglish.app.MainActivity
 import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.ui.LockDisplayActivity
+import com.wildenglish.app.i18n.Strings
 import java.io.File
 
 /**
@@ -146,7 +147,10 @@ object PlaybackSession {
             val metadata = MediaMetadata.Builder()
                 .putString(MediaMetadata.METADATA_KEY_TITLE, title)
                 .putString(MediaMetadata.METADATA_KEY_ARTIST, displaySubtitle)
-                .putString(MediaMetadata.METADATA_KEY_ALBUM, subtitle.ifBlank { "有声书" })
+                .putString(
+                    MediaMetadata.METADATA_KEY_ALBUM,
+                    subtitle.ifBlank { Strings.get(R.string.audiobook) },
+                )
                 .putString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE, title)
                 .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle)
             if (art != null) {
@@ -196,13 +200,26 @@ object PlaybackSession {
             .setCategory(Notification.CATEGORY_TRANSPORT)
             .setFullScreenIntent(openLockDisplay(app, ambient = false), false)
         if (art != null) builder.setLargeIcon(art)
-        builder.addAction(action(app, R.drawable.ic_media_prev, "上一句", ACTION_PREV))
+        builder.addAction(
+            action(
+                app,
+                R.drawable.ic_media_prev,
+                Strings.get(R.string.previous_sentence),
+                ACTION_PREV
+            )
+        )
         if (isPlaying) {
-            builder.addAction(action(app, R.drawable.ic_media_pause, "暂停", ACTION_PAUSE))
+            builder.addAction(
+                action(app, R.drawable.ic_media_pause, Strings.get(R.string.pause), ACTION_PAUSE)
+            )
         } else {
-            builder.addAction(action(app, R.drawable.ic_media_play, "播放", ACTION_PLAY))
+            builder.addAction(
+                action(app, R.drawable.ic_media_play, Strings.get(R.string.play), ACTION_PLAY)
+            )
         }
-        builder.addAction(action(app, R.drawable.ic_media_next, "下一句", ACTION_NEXT))
+        builder.addAction(
+            action(app, R.drawable.ic_media_next, Strings.get(R.string.next_sentence), ACTION_NEXT)
+        )
         builder.setStyle(
             Notification.MediaStyle()
                 .setMediaSession(mediaSession.sessionToken)
@@ -282,10 +299,10 @@ object PlaybackSession {
     private fun createChannel(app: Context) {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "锁屏播放控制",
+            Strings.get(R.string.lock_title),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "锁屏与息屏时显示朗读控制"
+            description = Strings.get(R.string.lock_controls_desc)
             setSound(null, null)
             enableVibration(false)
             setShowBadge(false)

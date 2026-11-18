@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,8 +51,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.playback.PlaybackCenter
 import com.wildenglish.app.audiobook.playback.PlaybackSnapshot
+import com.wildenglish.app.i18n.LocaleHelper
 import com.wildenglish.app.ui.theme.AudioBookTheme
 import com.wildenglish.app.ui.theme.GlassIconButton
 import com.wildenglish.app.ui.theme.GlassPanel
@@ -85,6 +88,10 @@ class LockDisplayActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -219,7 +226,9 @@ private fun LockDisplayScreen(
                 letterSpacing = 2.sp,
             )
             Text(
-                if (ambient) "息屏播放" else "锁屏播放",
+                stringResource(
+                    if (ambient) R.string.lock_ambient_title else R.string.lock_title
+                ),
                 color = Color.White.copy(alpha = 0.45f),
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 4.dp),
@@ -234,7 +243,7 @@ private fun LockDisplayScreen(
             )
             Spacer(Modifier.height(20.dp))
             Text(
-                snapshot.title.ifBlank { "有声书" },
+                snapshot.title.ifBlank { stringResource(R.string.audiobook) },
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -261,7 +270,7 @@ private fun LockDisplayScreen(
                 elevation = 8.dp,
             ) {
                 Text(
-                    snapshot.currentSentence.ifBlank { "准备朗读…" },
+                    snapshot.currentSentence.ifBlank { stringResource(R.string.lock_preparing) },
                     color = Color.White.copy(alpha = 0.92f),
                     fontSize = 16.sp,
                     lineHeight = 24.sp,
@@ -288,7 +297,7 @@ private fun LockDisplayScreen(
                 ) {
                     Icon(
                         Icons.Filled.SkipPrevious,
-                        contentDescription = "上一句",
+                        contentDescription = stringResource(R.string.previous_sentence),
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -299,7 +308,9 @@ private fun LockDisplayScreen(
                 ) {
                     Icon(
                         if (snapshot.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (snapshot.isPlaying) "暂停" else "播放",
+                        contentDescription = stringResource(
+                            if (snapshot.isPlaying) R.string.pause else R.string.play
+                        ),
                         modifier = Modifier.size(36.dp),
                     )
                 }
@@ -310,7 +321,7 @@ private fun LockDisplayScreen(
                 ) {
                     Icon(
                         Icons.Filled.SkipNext,
-                        contentDescription = "下一句",
+                        contentDescription = stringResource(R.string.next_sentence),
                         modifier = Modifier.size(28.dp)
                     )
                 }

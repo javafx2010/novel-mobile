@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -97,6 +98,14 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
         }
     }
 
+    // 切换语言后不重建 Activity（那条路径会卡死）：直接结束当前页面，
+    // 用户重新点开应用时 attachBaseContext 会按新偏好重新包装资源。
+    val context = LocalContext.current
+    val languageToken = state.languageChangeToken
+    LaunchedEffect(languageToken) {
+        if (languageToken > 0) context.findActivity()?.finish()
+    }
+
     BackHandler(enabled = state.screen != Screen.LIBRARY) { vm.goBack() }
 
     // On the library screen, "back" minimizes to the tray instead of finishing:
@@ -111,7 +120,8 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
     Box(Modifier.fillMaxSize()) {
         val darkScreen = when (state.screen) {
             Screen.LIBRARY, Screen.DETAIL, Screen.PLAYER,
-            Screen.SETTINGS, Screen.VOICE, Screen.STORAGE, Screen.PLAYBACK -> true
+            Screen.SETTINGS, Screen.VOICE, Screen.STORAGE, Screen.PLAYBACK,
+            Screen.LANGUAGE -> true
 
             else -> false // 书城等仍用浅色玻璃背景
         }
@@ -145,6 +155,7 @@ fun AudioBookApp(vm: AudioBookViewModel = viewModel()) {
                         Screen.VOICE -> VoiceScreen(state, vm)
                         Screen.STORAGE -> StorageScreen(state, vm)
                         Screen.PLAYBACK -> PlaybackSettingsScreen(state, vm)
+                        Screen.LANGUAGE -> LanguageScreen(state, vm)
                     }
                 }
             }
@@ -305,7 +316,7 @@ private fun MiniPlayer(
         ) {
             Icon(
                 imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = "播放/暂停",
+                contentDescription = stringResource(R.string.play_pause),
                 tint = MiniInk,
                 modifier = Modifier.size(22.dp),
             )

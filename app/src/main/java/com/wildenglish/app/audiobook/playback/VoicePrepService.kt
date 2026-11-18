@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.wildenglish.app.MainActivity
 import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -115,7 +116,11 @@ class VoicePrepService : Service() {
         val working = st.isWorking && st.activeBookTitle != null
         val text = if (working) {
             "《${st.activeBookTitle}》${st.done}/${st.total}" +
-                    if (st.pendingCount > 1) " · 还有 ${st.pendingCount - 1} 本待配音" else ""
+                    if (st.pendingCount > 1) {
+                        Strings.get(R.string.voice_pending, st.pendingCount - 1)
+                    } else {
+                        ""
+                    }
         } else {
             getString(R.string.voice_notif_idle)
         }

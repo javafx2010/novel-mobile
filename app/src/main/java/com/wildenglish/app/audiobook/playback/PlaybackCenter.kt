@@ -2,9 +2,11 @@ package com.wildenglish.app.audiobook.playback
 
 import android.app.Application
 import android.content.Intent
+import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.data.Audiobook
 import com.wildenglish.app.audiobook.data.AudiobookLibrary
 import com.wildenglish.app.audiobook.data.loadChapterSentences
+import com.wildenglish.app.i18n.Strings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -82,7 +84,7 @@ object PlaybackCenter {
                     _snapshot.update {
                         it.copy(
                             isPlaying = false,
-                            error = "微软 Edge 语音服务不可用，请检查网络连接后重试",
+                            error = Strings.get(R.string.tts_service_unavailable),
                         )
                     }
                 }
@@ -248,7 +250,7 @@ object PlaybackCenter {
                         audioMode = false,
                         isBuffering = false,
                         isPlaying = false,
-                        error = "本章没有可朗读的文稿",
+                        error = Strings.get(R.string.no_speech_text),
                     )
                 }
                 publish()

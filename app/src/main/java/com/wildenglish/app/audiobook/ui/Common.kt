@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.wildenglish.app.R
@@ -152,13 +153,14 @@ fun formatTime(ms: Long): String {
     }
 }
 
+@Composable
 fun formatDurationLabel(seconds: Int?): String? {
     if (seconds == null || seconds <= 0) return null
     val minutes = seconds / 60
     return when {
-        minutes >= 60 -> "${minutes / 60} 小时 ${minutes % 60} 分"
-        minutes >= 1 -> "$minutes 分钟"
-        else -> "$seconds 秒"
+        minutes >= 60 -> stringResource(R.string.hours_minutes, minutes / 60, minutes % 60)
+        minutes >= 1 -> stringResource(R.string.minutes, minutes)
+        else -> stringResource(R.string.seconds, seconds)
     }
 }
 

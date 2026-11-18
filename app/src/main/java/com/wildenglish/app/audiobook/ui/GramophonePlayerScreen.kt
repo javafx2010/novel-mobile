@@ -76,6 +76,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -103,7 +104,12 @@ private val PlinthTop = Color(0xFF2B221A)
 private val PlinthBottom = Color(0xFF16100B)
 
 private val GRAMO_SPEEDS = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-private val GRAMO_SLEEP = listOf(0 to "关闭", 15 to "15 分钟", 30 to "30 分钟", 60 to "60 分钟")
+private val GRAMO_SLEEP = listOf(
+    0 to R.string.close,
+    15 to R.string.minutes_15,
+    30 to R.string.minutes_30,
+    60 to R.string.minutes_60,
+)
 
 /**
  * The one player for every book, MP3 and TTS alike: a gramophone-inspired layout —
@@ -119,9 +125,9 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
     val chapter = state.currentChapter
     if (book == null || chapter == null) {
         CenteredMessage(
-            title = "还没有正在播放的内容",
-            hint = "从书架里选一本书开始收听。",
-            actionLabel = "返回书架",
+            title = stringResource(R.string.player_empty),
+            hint = stringResource(R.string.player_empty_hint),
+            actionLabel = stringResource(R.string.back_to_library),
             onAction = vm::goBack,
         )
         return
@@ -239,13 +245,17 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                     )
                 } else {
                     Text(
-                        "第 ${(state.currentSentenceIndex + 1).coerceAtLeast(1)} / ${state.sentences.size} 句",
+                        stringResource(
+                            R.string.sentence_progress,
+                            (state.currentSentenceIndex + 1).coerceAtLeast(1),
+                            state.sentences.size,
+                        ),
                         fontSize = 12.sp,
                         letterSpacing = 1.sp,
                         color = Cream.copy(alpha = 0.66f),
                     )
                     Text(
-                        if (state.isBuffering) "正在合成语音…" else "",
+                        if (state.isBuffering) stringResource(R.string.buffering) else "",
                         fontSize = 12.sp,
                         letterSpacing = 1.sp,
                         color = Cream.copy(alpha = 0.66f),
@@ -270,12 +280,17 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BrassChip(label = "语速 ${state.speed}×") { showSpeed = true }
+                BrassChip(label = stringResource(R.string.speed_value, "${state.speed}")) {
+                    showSpeed = true
+                }
                 BrassChip(
                     label = if (state.sleepRemainingSeconds > 0) {
-                        "定时 ${formatTime(state.sleepRemainingSeconds * 1000L)}"
+                        stringResource(
+                            R.string.timer_value,
+                            formatTime(state.sleepRemainingSeconds * 1000L),
+                        )
                     } else {
-                        "定时"
+                        stringResource(R.string.timer)
                     },
                 ) { showSleep = true }
             }
@@ -286,7 +301,7 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
     if (showSpeed) {
         AlertDialog(
             onDismissRequest = { showSpeed = false },
-            title = { Text("播放速度") },
+            title = { Text(stringResource(R.string.speed)) },
             text = {
                 Column {
                     GRAMO_SPEEDS.forEach { speed ->
@@ -304,14 +319,14 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
     if (showSleep) {
         AlertDialog(
             onDismissRequest = { showSleep = false },
-            title = { Text("睡眠定时") },
+            title = { Text(stringResource(R.string.sleep_timer)) },
             text = {
                 Column {
                     GRAMO_SLEEP.forEach { (minutes, label) ->
                         TextButton(onClick = {
                             vm.setSleepTimer(minutes)
                             showSleep = false
-                        }) { Text(label) }
+                        }) { Text(stringResource(label)) }
                     }
                 }
             },
@@ -390,7 +405,7 @@ private fun ChapterPlaque(title: String, onBack: () -> Unit) {
         IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
             Icon(
                 Icons.Filled.KeyboardArrowDown,
-                contentDescription = "收起",
+                contentDescription = stringResource(R.string.collapse),
                 tint = Cream.copy(alpha = 0.9f),
             )
         }
@@ -806,7 +821,7 @@ private fun GramophoneControls(
             IconButton(onClick = onPreviousChapter) {
                 Icon(
                     Icons.Filled.SkipPrevious,
-                    contentDescription = "上一章",
+                    contentDescription = stringResource(R.string.previous_chapter),
                     tint = Brass,
                     modifier = Modifier.size(26.dp),
                 )
@@ -817,7 +832,7 @@ private fun GramophoneControls(
             IconButton(onClick = onNextChapter) {
                 Icon(
                     Icons.Filled.SkipNext,
-                    contentDescription = "下一章",
+                    contentDescription = stringResource(R.string.next_chapter),
                     tint = Brass,
                     modifier = Modifier.size(26.dp),
                 )
@@ -875,7 +890,9 @@ private fun PlayButton(isPlaying: Boolean, isBuffering: Boolean, onClick: () -> 
         } else {
             Icon(
                 imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) "暂停" else "播放",
+                contentDescription = stringResource(
+                    if (isPlaying) R.string.pause else R.string.play
+                ),
                 tint = GramoInk,
                 modifier = Modifier.size(34.dp),
             )

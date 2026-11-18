@@ -1,5 +1,7 @@
 package com.wildenglish.app.audiobook.data
 
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -24,14 +26,14 @@ object EpubImporter {
     /** Returns null on success, or a human-readable error to surface to the user. */
     fun convert(epubRoot: File, destDir: File): String? {
         val container = File(epubRoot, "META-INF/container.xml")
-        if (!container.isFile) return "不是有效的 EPUB：缺少 META-INF/container.xml"
-        val containerXml = read(container) ?: return "无法读取 container.xml"
+        if (!container.isFile) return Strings.get(R.string.epub_invalid)
+        val containerXml = read(container) ?: return Strings.get(R.string.epub_no_container)
         val opfRel = Regex("""<rootfile\b[^>]*full-path\s*=\s*["']([^"']+)["']""")
             .find(containerXml)?.groupValues?.get(1)
-            ?: return "EPUB 缺少 rootfile（OPF）声明"
+            ?: return Strings.get(R.string.epub_no_rootfile)
         val opfFile = resolve(epubRoot, opfRel)?.takeIf { it.isFile }
-            ?: return "找不到 EPUB 的 OPF 文件（$opfRel）"
-        val opf = read(opfFile) ?: return "无法读取 OPF 文件"
+            ?: return Strings.get(R.string.epub_no_opf, opfRel)
+        val opf = read(opfFile) ?: return Strings.get(R.string.epub_read_opf_failed)
         val opfBase = opfFile.parentFile ?: epubRoot
 
         val title = firstTag(opf, "dc:title") ?: epubRoot.name
@@ -57,7 +59,7 @@ object EpubImporter {
             File(textDir, name).writeText(text, Charsets.UTF_8)
             val chTitle = toc[keyOf(item.href)]
                 ?: firstTag(html, "title")?.takeIf { it.isNotBlank() && it.length < 80 }
-                ?: "第 ${written + 1} 章"
+                ?: Strings.get(R.string.chapter_title_default, written + 1)
             chapters.put(
                 JSONObject()
                     .put("title", chTitle)
@@ -65,7 +67,7 @@ object EpubImporter {
             )
             written++
         }
-        if (written == 0) return "EPUB 中没有可朗读的正文（spine 中无有效 XHTML 文稿）"
+        if (written == 0) return Strings.get(R.string.epub_no_content)
 
         copyCover(opf, items, opfBase, destDir)
 

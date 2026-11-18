@@ -48,6 +48,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -79,9 +80,9 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
     val book = state.currentBook
     if (book == null) {
         CenteredMessage(
-            title = "没有选择书籍",
-            hint = "请返回书架重新选择。",
-            actionLabel = "返回书架",
+            title = stringResource(R.string.no_book),
+            hint = stringResource(R.string.no_book_hint),
+            actionLabel = stringResource(R.string.back_to_library),
             onAction = vm::goBack,
         )
         return
@@ -117,12 +118,12 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             IconButton(onClick = vm::goBack, modifier = Modifier.size(46.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "返回",
+                    contentDescription = stringResource(R.string.back),
                     tint = ShelfCream,
                 )
             }
             Text(
-                "选择碟片",
+                stringResource(R.string.choose_disc),
                 modifier = Modifier.weight(1f),
                 fontFamily = FontFamily.Serif,
                 fontSize = 16.sp,
@@ -151,9 +152,11 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 ShelfHero(
                     cover = cover,
                     title = book.title,
-                    meta = listOfNotNull(book.author, book.narrator?.let { "演播 $it" })
-                        .joinToString(" · ")
-                        .ifBlank { "${book.chapterCount} 章" },
+                    meta = listOfNotNull(
+                        book.author,
+                        book.narrator?.let { stringResource(R.string.narrator, it) },
+                    ).joinToString(" · ")
+                        .ifBlank { stringResource(R.string.chapter_count, book.chapterCount) },
                     description = book.description,
                     progressLabel = progressLabel(state),
                     hasProgress = hasProgress(state),
@@ -163,7 +166,7 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
-                    "碟片架 · 共 ${book.chapters.size} 张",
+                    stringResource(R.string.shelf_count, book.chapters.size),
                     modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
                     fontFamily = FontFamily.Serif,
                     fontSize = 15.sp,
@@ -193,14 +196,24 @@ private fun hasProgress(state: AudioBookUiState): Boolean =
                 state.savedSentenceIndex > 0
             })
 
+@Composable
 private fun progressLabel(state: AudioBookUiState): String? {
     val book = state.currentBook ?: return null
     val has = hasProgress(state)
     if (!has || book.chapters.isEmpty()) return null
+    val chapter = state.savedChapterIndex + 1
     return if (book.audioMode) {
-        "上次听到：第 ${state.savedChapterIndex + 1} 章 · ${formatTime(state.savedPositionMs)}"
+        stringResource(
+            R.string.last_pos_chapter_time,
+            chapter,
+            formatTime(state.savedPositionMs),
+        )
     } else {
-        "上次听到：第 ${state.savedChapterIndex + 1} 章 · 第 ${state.savedSentenceIndex + 1} 句"
+        stringResource(
+            R.string.last_pos_chapter_sentence,
+            chapter,
+            state.savedSentenceIndex + 1,
+        )
     }
 }
 
@@ -289,7 +302,11 @@ private fun ShelfHero(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    if (hasProgress) "继续朗读" else "开始朗读",
+                    if (hasProgress) {
+                        stringResource(R.string.continue_reading)
+                    } else {
+                        stringResource(R.string.start_reading)
+                    },
                     fontFamily = FontFamily.Serif,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -324,7 +341,7 @@ private fun DiscTile(
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "第 $number 张",
+            stringResource(R.string.disc_number, number),
             fontSize = 11.sp,
             letterSpacing = 1.sp,
             color = if (isCurrent) ShelfBrassLight else ShelfBrass.copy(alpha = 0.7f),

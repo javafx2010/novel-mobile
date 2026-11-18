@@ -1,5 +1,9 @@
 package com.wildenglish.app.audiobook.data
 
+import androidx.annotation.StringRes
+import com.wildenglish.app.R
+import com.wildenglish.app.i18n.Strings
+
 /**
  * An Edge TTS voice.
  *
@@ -12,10 +16,10 @@ data class VoiceConfig(
     val name: String,
     val lang: String,
     val label: String,
-    val hint: String,
+    @StringRes val hintRes: Int,
 ) {
-    /** "晓晓 · 女声 · 中文" — shown in the settings list. */
-    val title: String get() = "$label · $hint"
+    /** "晓晓 · 女声 · 中文" — shown in the settings list, localized. */
+    val title: String get() = "$label · ${Strings.get(hintRes)}"
 
     companion object {
 
@@ -23,18 +27,38 @@ data class VoiceConfig(
 
         /** Selectable voices: 中文 first, then English (multilingual voices read both). */
         val OPTIONS: List<VoiceConfig> = listOf(
-            VoiceConfig("zh-CN-XiaoxiaoNeural", "zh-CN", "晓晓", "女声 · 中文"),
-            VoiceConfig("zh-CN-XiaoyiNeural", "zh-CN", "晓伊", "女声 · 中文"),
-            VoiceConfig("zh-CN-YunxiNeural", "zh-CN", "云希", "男声 · 中文"),
-            VoiceConfig("zh-CN-YunjianNeural", "zh-CN", "云健", "男声 · 中文"),
-            VoiceConfig("zh-CN-YunyangNeural", "zh-CN", "云扬", "男声 · 中文"),
-            VoiceConfig("zh-CN-YunxiaNeural", "zh-CN", "云夏", "男声 · 中文"),
-            VoiceConfig("en-US-EmmaMultilingualNeural", "en-US", "Emma", "女声 · 多语种"),
-            VoiceConfig("en-US-AvaMultilingualNeural", "en-US", "Ava", "女声 · 多语种"),
-            VoiceConfig("en-US-AndrewMultilingualNeural", "en-US", "Andrew", "男声 · 多语种"),
-            VoiceConfig("en-US-BrianMultilingualNeural", "en-US", "Brian", "男声 · 多语种"),
-            VoiceConfig("en-US-AriaNeural", "en-US", "Aria", "女声 · 英文"),
-            VoiceConfig("en-US-GuyNeural", "en-US", "Guy", "男声 · 英文"),
+            VoiceConfig("zh-CN-XiaoxiaoNeural", "zh-CN", "晓晓", R.string.voice_desc_female_zh),
+            VoiceConfig("zh-CN-XiaoyiNeural", "zh-CN", "晓伊", R.string.voice_desc_female_zh),
+            VoiceConfig("zh-CN-YunxiNeural", "zh-CN", "云希", R.string.voice_desc_male_zh),
+            VoiceConfig("zh-CN-YunjianNeural", "zh-CN", "云健", R.string.voice_desc_male_zh),
+            VoiceConfig("zh-CN-YunyangNeural", "zh-CN", "云扬", R.string.voice_desc_male_zh),
+            VoiceConfig("zh-CN-YunxiaNeural", "zh-CN", "云夏", R.string.voice_desc_male_zh),
+            VoiceConfig(
+                "en-US-EmmaMultilingualNeural",
+                "en-US",
+                "Emma",
+                R.string.voice_desc_female_multi
+            ),
+            VoiceConfig(
+                "en-US-AvaMultilingualNeural",
+                "en-US",
+                "Ava",
+                R.string.voice_desc_female_multi
+            ),
+            VoiceConfig(
+                "en-US-AndrewMultilingualNeural",
+                "en-US",
+                "Andrew",
+                R.string.voice_desc_male_multi
+            ),
+            VoiceConfig(
+                "en-US-BrianMultilingualNeural",
+                "en-US",
+                "Brian",
+                R.string.voice_desc_male_multi
+            ),
+            VoiceConfig("en-US-AriaNeural", "en-US", "Aria", R.string.voice_desc_female_en),
+            VoiceConfig("en-US-GuyNeural", "en-US", "Guy", R.string.voice_desc_male_en),
         )
 
         val DEFAULT: VoiceConfig = OPTIONS.first { it.name == DEFAULT_NAME }
