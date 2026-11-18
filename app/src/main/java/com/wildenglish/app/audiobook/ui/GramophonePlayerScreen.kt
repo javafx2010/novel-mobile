@@ -44,7 +44,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -90,7 +89,6 @@ import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
-import kotlin.math.roundToInt
 import kotlin.math.sin
 
 private val GramoTop = Color(0xFF14110E)
@@ -134,11 +132,8 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
     }
 
     val audioMode = state.audioMode
-    val sentenceLast = (state.sentences.size - 1).coerceAtLeast(1)
     var showSpeed by remember { mutableStateOf(false) }
     var showSleep by remember { mutableStateOf(false) }
-    var sliderValue by remember(chapter.index, audioMode) { mutableStateOf(0f) }
-    var dragging by remember { mutableStateOf(false) }
 
     // The gramophone is a dark screen; switch the system bar icons to light while shown.
     val view = LocalView.current
@@ -156,25 +151,16 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
         }
     }
 
-    LaunchedEffect(
-        state.positionMs,
-        state.durationMs,
-        state.currentSentenceIndex,
-        state.sentences.size,
-        audioMode,
-        dragging,
-    ) {
-        if (!dragging) {
-            sliderValue = if (audioMode) {
-                if (state.durationMs > 0) {
-                    (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f)
-                } else {
-                    0f
-                }
-            } else {
-                state.currentSentenceIndex.coerceAtLeast(0).toFloat() / sentenceLast
-            }
+    // Raw playback progress still drives the tonearm sweep; no visible progress bar.
+    val progress = if (audioMode) {
+        if (state.durationMs > 0) {
+            (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f)
+        } else {
+            0f
         }
+    } else {
+        val last = (state.sentences.size - 1).coerceAtLeast(1)
+        state.currentSentenceIndex.coerceAtLeast(0).toFloat() / last
     }
 
     Box(
@@ -203,65 +189,9 @@ fun GramophonePlayerScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 GramophoneHero(
                     cover = book.coverFile,
                     playing = state.isPlaying,
-                    progress = sliderValue,
+                    progress = progress,
                     modifier = Modifier.fillMaxSize(),
                 )
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            GramophoneSlider(
-                value = sliderValue,
-                onValueChange = {
-                    dragging = true
-                    sliderValue = it
-                },
-                onValueChangeFinished = {
-                    dragging = false
-                    if (audioMode) {
-                        vm.seekToPosition((sliderValue * state.durationMs).toLong())
-                    } else {
-                        vm.seekToSentence((sliderValue * sentenceLast).roundToInt())
-                    }
-                },
-            )
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                if (audioMode) {
-                    Text(
-                        formatTime(state.positionMs),
-                        fontSize = 12.sp,
-                        letterSpacing = 1.sp,
-                        color = Cream.copy(alpha = 0.66f),
-                    )
-                    Text(
-                        if (state.durationMs > 0) formatTime(state.durationMs) else "--:--",
-                        fontSize = 12.sp,
-                        letterSpacing = 1.sp,
-                        color = Cream.copy(alpha = 0.66f),
-                    )
-                } else {
-                    Text(
-                        stringResource(
-                            R.string.sentence_progress,
-                            (state.currentSentenceIndex + 1).coerceAtLeast(1),
-                            state.sentences.size,
-                        ),
-                        fontSize = 12.sp,
-                        letterSpacing = 1.sp,
-                        color = Cream.copy(alpha = 0.66f),
-                    )
-                    Text(
-                        if (state.isBuffering) stringResource(R.string.buffering) else "",
-                        fontSize = 12.sp,
-                        letterSpacing = 1.sp,
-                        color = Cream.copy(alpha = 0.66f),
-                    )
-                }
             }
 
             GramophoneControls(
@@ -457,8 +387,8 @@ private fun GramophoneHero(
     }
 
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        // The plate is gone: let the record use almost the whole free area.
-        val discSize = minOf(maxWidth * 0.94f, maxHeight * 0.99f)
+        // With the progress bar and status row gone, let the record fill the width.
+        val discSize = minOf(maxWidth, maxHeight * 0.99f)
         val discRadiusPx = with(LocalDensity.current) { discSize.toPx() } / 2f
         VinylAura(
             playing = playing,
@@ -801,50 +731,6 @@ private fun TonearmLayer(
     }
 }
 
-@Composable
-private fun GramophoneSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    onValueChangeFinished: () -> Unit,
-) {
-    Slider(
-        value = value.coerceIn(0f, 1f),
-        onValueChange = onValueChange,
-        onValueChangeFinished = onValueChangeFinished,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(20.dp),
-        thumb = {
-            Box(
-                Modifier
-                    .size(13.dp)
-                    .background(Cream, CircleShape)
-                    .border(2.dp, Brass, CircleShape)
-            )
-        },
-        track = { sliderState ->
-            val range = sliderState.valueRange
-            val fraction = ((sliderState.value - range.start) /
-                    (range.endInclusive - range.start)).coerceIn(0f, 1f)
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(BrassDark.copy(alpha = 0.45f), RoundedCornerShape(2.dp)),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(fraction)
-                        .height(3.dp)
-                        .background(
-                            Brush.horizontalGradient(listOf(BrassDark, Brass, BrassLight)),
-                            RoundedCornerShape(2.dp),
-                        ),
-                )
-            }
-        },
-    )
-}
 
 /** Wooden plinth with brass transport controls. */
 @Composable
