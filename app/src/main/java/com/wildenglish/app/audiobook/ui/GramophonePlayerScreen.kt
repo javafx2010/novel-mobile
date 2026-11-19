@@ -85,6 +85,7 @@ import androidx.core.view.WindowCompat
 import com.wildenglish.app.R
 import com.wildenglish.app.audiobook.AudioBookUiState
 import com.wildenglish.app.audiobook.AudioBookViewModel
+import com.wildenglish.app.audiobook.playback.AmplitudeMeter
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -100,6 +101,10 @@ private val Cream = Color(0xFFF4E9D4)
 private val GramoInk = Color(0xFF17120C)
 private val PlinthTop = Color(0xFF2B221A)
 private val PlinthBottom = Color(0xFF16100B)
+
+/** Disc spin: baseline degrees/sec plus an amplitude-driven boost (voice waveform). */
+private const val SPIN_BASE_DPS = 10f
+private const val SPIN_GAIN_DPS = 38f
 
 private val GRAMO_SPEEDS = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
 private val GRAMO_SLEEP = listOf(
@@ -380,7 +385,11 @@ private fun GramophoneHero(
         while (true) {
             withFrameNanos { now ->
                 val seconds = (now - last) / 1_000_000_000f
-                angle.value = (angle.value + seconds * 33f) % 360f
+                // Spin speed tracks the voice amplitude: slow and steady in quiet
+                // passages, faster on loud ones. Read in the frame loop (no recompose).
+                val amp = AmplitudeMeter.level.value
+                val degreesPerSecond = SPIN_BASE_DPS + amp * SPIN_GAIN_DPS
+                angle.value = (angle.value + seconds * degreesPerSecond) % 360f
                 last = now
             }
         }
@@ -671,6 +680,10 @@ private fun TonearmLayer(
             val halfTurn = PI.toFloat()
             // 0→1 every 180° of disc rotation; seamless because the marks are evenly spaced.
             val phase = (((rotation.value % 180f) + 180f) % 180f) / 180f
+            // Live audio amplitude (0..1) scales each dash's angular length: the trail
+            // grows and shrinks with the voice waveform. Sampled off the main ticker;
+            // this draw block already redraws every frame via rotation.value.
+            val amplitude = AmplitudeMeter.level.value
             val marks = 40
             val seg = halfTurn / marks
             for (i in 0 until marks) {
@@ -678,9 +691,11 @@ private fun TonearmLayer(
                 // continuously, so the tail visibly slides and wraps at the half turn.
                 val age = ((i.toFloat() / marks) + phase) % 1f
                 val a0 = startAngle + age * halfTurn
-                val a1 = a0 + seg * 0.5f
+                // Keep a solid minimum length so quiet passages still read as dashes,
+                // not dots; loud ones grow toward a full slot.
+                val a1 = a0 + seg * (0.55f + 0.4f * amplitude)
                 drawLine(
-                    color = BrassLight.copy(alpha = 0.34f * (1f - age) * (1f - age)),
+                    color = BrassLight.copy(alpha = 0.17f * (1f - age) * (1f - age)),
                     start = Offset(center.x + cos(a0) * radius, center.y + sin(a0) * radius),
                     end = Offset(center.x + cos(a1) * radius, center.y + sin(a1) * radius),
                     strokeWidth = 1.3.dp.toPx(),

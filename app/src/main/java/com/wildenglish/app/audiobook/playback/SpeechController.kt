@@ -327,6 +327,7 @@ class SpeechController(
             }
             applySpeedLocked(mp)
             mp.start()
+            AmplitudeMeter.attach(mp)
             main.post {
                 if (gen != generation) return@post
                 callback.onBuffering(false)
@@ -389,6 +390,7 @@ class SpeechController(
     private fun stopPlayerLocked() {
         val p = player ?: return
         player = null
+        AmplitudeMeter.detach(p)
         try {
             p.reset()
         } catch (e: Exception) {

@@ -79,6 +79,7 @@ class AudioFilePlayer(private val callback: Callback) {
                 val start = if (durationMs > 0) startMs.coerceIn(0L, durationMs) else startMs
                 if (start > 0) runCatching { preparedPlayer.seekTo(start.toInt()) }
                 if (playing) runCatching { preparedPlayer.start() }
+                AmplitudeMeter.attach(preparedPlayer)
                 callback.onPrepared(durationMs)
                 callback.onPosition(start)
                 callback.onPlayingChanged(playing)
@@ -190,6 +191,7 @@ class AudioFilePlayer(private val callback: Callback) {
     private fun releasePlayer() {
         val p = player ?: return
         player = null
+        AmplitudeMeter.detach(p)
         runCatching { p.reset() }
         runCatching { p.release() }
     }
