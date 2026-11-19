@@ -106,6 +106,9 @@ private val PlinthBottom = Color(0xFF16100B)
 private const val SPIN_BASE_DPS = 10f
 private const val SPIN_GAIN_DPS = 38f
 
+/** Degrees of disc rotation per full sound-wave expansion (locked to spin speed). */
+private const val WAVE_SPAN_DEG = 90f
+
 private val GRAMO_SPEEDS = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
 private val GRAMO_SLEEP = listOf(
     0 to R.string.close,
@@ -402,6 +405,7 @@ private fun GramophoneHero(
         VinylAura(
             playing = playing,
             discRadius = discRadiusPx,
+            angle = angle,
             modifier = Modifier.fillMaxSize(),
         )
         Box(Modifier.size(discSize)) {
@@ -422,7 +426,12 @@ private fun GramophoneHero(
  * while playing, so pausing stops all effect redraws.
  */
 @Composable
-private fun VinylAura(playing: Boolean, discRadius: Float, modifier: Modifier = Modifier) {
+private fun VinylAura(
+    playing: Boolean,
+    discRadius: Float,
+    angle: State<Float>,
+    modifier: Modifier = Modifier,
+) {
     Canvas(modifier) {
         val center = Offset(size.width / 2f, size.height / 2f)
         drawCircle(
@@ -440,26 +449,19 @@ private fun VinylAura(playing: Boolean, discRadius: Float, modifier: Modifier = 
         )
     }
     if (playing) {
-        SoundWaves(discRadius = discRadius, modifier = modifier)
+        SoundWaves(discRadius = discRadius, angle = angle, modifier = modifier)
     }
 }
 
 @Composable
-private fun SoundWaves(discRadius: Float, modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "soundWaves")
-    val wave by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween<Float>(durationMillis = 2600, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "wavePhase",
-    )
+private fun SoundWaves(discRadius: Float, angle: State<Float>, modifier: Modifier = Modifier) {
+    // Wave phase is locked to the disc's rotation, so it inherits the spin speed
+    // (which already follows the voice amplitude): slow when quiet, fast when loud.
+    // One full ring expansion every WAVE_SPAN_DEG of rotation.
     Canvas(modifier) {
         val center = Offset(size.width / 2f, size.height / 2f)
         for (i in 0..2) {
-            val p = (wave + i / 3f) % 1f
+            val p = ((angle.value / WAVE_SPAN_DEG) + i / 3f) % 1f
             drawCircle(
                 color = BrassLight.copy(alpha = 0.24f * (1f - p)),
                 radius = discRadius * (1.01f + p * 0.28f),
