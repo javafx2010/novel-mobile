@@ -23,10 +23,10 @@ fun SettingsScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
             )
         }
         item {
-            SettingsEntryRow(
+            SettingsEntryIconRow(
                 title = stringResource(R.string.settings_voice),
-                value = state.voice.title,
                 hint = state.voice.name,
+                iconRes = state.voice.avatarRes,
                 onClick = vm::openVoice,
             )
         }
