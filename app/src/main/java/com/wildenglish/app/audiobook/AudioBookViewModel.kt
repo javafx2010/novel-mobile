@@ -401,12 +401,19 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     fun playChapter(book: Audiobook, index: Int) =
         startChapter(book, index, Screen.PLAYER, 0)
 
+    /** 跳过不可见的目录前置页：target 落在目录章时移到第一张正文碟。 */
+    private fun skipToc(book: Audiobook, target: Int): Int {
+        var i = target.coerceIn(0, book.chapters.lastIndex)
+        while (i in book.chapters.indices && book.isToc(book.chapters[i])) i++
+        return if (i in book.chapters.indices) i else book.contentChapters.firstOrNull()?.index ?: 0
+    }
+
     /** Detail "播放": resume the last chapter/sentence in the audiobook view. */
     fun playSaved() {
         val book = _state.value.currentBook ?: return
         if (book.chapters.isEmpty()) return
         val (chapter, _) = library.progressOf(book.id)
-        startChapter(book, chapter.coerceIn(0, book.chapters.lastIndex), Screen.PLAYER, -1)
+        startChapter(book, skipToc(book, chapter), Screen.PLAYER, -1)
     }
 
     /** Mini player tap: open the audiobook view. */
@@ -446,7 +453,11 @@ class AudioBookViewModel(application: Application) : AndroidViewModel(applicatio
     fun previousChapter() {
         val s = _state.value
         val book = s.currentBook ?: return
-        if (s.chapterIndex > 0) startChapter(book, s.chapterIndex - 1, s.screen, 0)
+        if (s.chapterIndex > 0) {
+            var target = s.chapterIndex - 1
+            while (target > 0 && book.isToc(book.chapters[target])) target--
+            if (!book.isToc(book.chapters[target])) startChapter(book, target, s.screen, 0)
+        }
     }
 
     private fun playNextChapter() {

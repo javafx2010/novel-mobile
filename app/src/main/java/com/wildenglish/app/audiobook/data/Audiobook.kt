@@ -32,6 +32,19 @@ data class Audiobook(
 
     /** True when the book ships pre-recorded audio, which is played directly instead of Edge TTS. */
     val audioMode: Boolean get() = chapters.any { it.audioFile != null }
+
+    /**
+     * EPUB 前置页（封面/目录/「共 N 章」信息页）常被当成章节导入：它们的标题重复书名。
+     * 这类章节不算正文碟片，选碟架隐藏、连续播放跳过。音频书的章节名来自文件名，不适用。
+     */
+    fun isToc(chapter: Chapter): Boolean = !audioMode && chapter.title == title
+
+    /** 正文碟片（去掉目录前置页）。整本都是前置页时退回全部，避免出现空书架。 */
+    val contentChapters: List<Chapter>
+        get() {
+            val content = chapters.filterNot { isToc(it) }
+            return content.ifEmpty { chapters }
+        }
 }
 
 /**

@@ -89,6 +89,8 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
     }
 
     val cover = rememberCover(book.coverFile)
+    // 目录/封面等前置页不算正文碟片，选碟架不显示；chapter.index 保持原始值，进度不错位。
+    val discs = book.contentChapters
 
     // 选碟页是深色留声机风格，状态栏图标需要切成浅色。
     val view = LocalView.current
@@ -166,7 +168,7 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
-                    stringResource(R.string.shelf_count, book.chapters.size),
+                    stringResource(R.string.shelf_count, discs.size),
                     modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
                     fontFamily = FontFamily.Serif,
                     fontSize = 15.sp,
@@ -175,13 +177,13 @@ fun BookDetailScreen(state: AudioBookUiState, vm: AudioBookViewModel) {
                 )
             }
 
-            itemsIndexed(book.chapters, key = { _, chapter -> chapter.index }) { index, chapter ->
+            itemsIndexed(discs, key = { _, chapter -> chapter.index }) { index, chapter ->
                 DiscTile(
                     cover = cover,
                     number = index + 1,
                     title = chapter.title,
-                    isCurrent = index == state.chapterIndex,
-                    onClick = { vm.playChapter(book, index) },
+                    isCurrent = chapter.index == state.chapterIndex,
+                    onClick = { vm.playChapter(book, chapter.index) },
                 )
             }
         }
